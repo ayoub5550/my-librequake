@@ -127,6 +127,22 @@ namespace LQ.EditorTools {
             catch (Exception e) { Debug.LogError("BuildSelected failed: " + e); if (Application.isBatchMode) EditorApplication.Exit(1); throw; }
         }
 
+        /// <summary>
+        /// Unity Cloud Build / Build Automation "Pre-Export Method": configures player settings and imports the maps
+        /// (all of them, or only those listed in the LQ_MAPS env var). Cloud Build then performs the Android export itself.
+        /// </summary>
+        public static void CloudPreExport() {
+            try {
+                Debug.Log("[LQ] CloudPreExport start");
+                ConfigurePlayerSettings();
+                var maps = Environment.GetEnvironmentVariable("LQ_MAPS");
+                if (string.IsNullOrWhiteSpace(maps)) { ImportTextures(); ImportBrushModels(); ImportAllMaps(); }
+                else { ImportTextures(); ImportBrushModels(); LoadMaterials(); foreach (var m in maps.Split(',')) ImportMap(m.Trim()); BuildMenuScene(); UpdateBuildScenes(); }
+                AssetDatabase.SaveAssets();
+                Debug.Log("[LQ] CloudPreExport done. Scenes: " + string.Join(", ", EditorBuildSettings.scenes.Select(x => x.path)));
+            } catch (Exception e) { Debug.LogError("CloudPreExport failed: " + e); throw; }
+        }
+
         /// <summary>Import step only (batch).</summary>
         public static void ImportAll() {
             try { ImportTextures(); ImportBrushModels(); ImportAllMaps(); }
