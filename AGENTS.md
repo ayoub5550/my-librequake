@@ -42,6 +42,10 @@ Status (2026-09-18):
     `FindObjectsOfType<QEntity>`, `TriggerTeleport` logs a warning when no destination exists,
     `TriggerBase` falls back to a BoxCollider (and forces MeshColliders convex) and the prepass
     keeps `*tele*` brushes solid. Awaiting device test.
+  - Unbuilt on `main` (commit `afd2af0`, waiting for more device bugs to batch into build #6):
+    `func_episodegate` is now removed unless the player owns that episode's rune and
+    `func_bossgate` is removed once all four runes are owned (Quake QC semantics). Before this
+    the gates were treated as plain walls, so every EPISODE entrance in `start` looked closed.
 - Lesson: never clear a static registry in `Awake` of a scene object — other objects' `Awake`
   order is undefined; prune instead.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
