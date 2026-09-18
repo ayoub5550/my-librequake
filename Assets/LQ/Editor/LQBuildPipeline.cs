@@ -71,7 +71,13 @@ namespace LQ.EditorTools {
             LoadMaterials();
             var maps = MapList();
             int i = 0;
-            foreach (var m in maps) { Debug.Log($"=== map {++i}/{maps.Count}: {m}"); ImportMap(m); }
+            var failed = new List<string>();
+            foreach (var m in maps) {
+                Debug.Log($"=== map {++i}/{maps.Count}: {m}");
+                try { ImportMap(m); }
+                catch (Exception e) { Debug.LogError($"[LQ] map {m} failed, skipping: {e}"); failed.Add(m); }
+            }
+            if (failed.Count > 0) Debug.LogWarning("[LQ] maps skipped: " + string.Join(", ", failed));
             BuildMenuScene();
             UpdateBuildScenes();
         }
