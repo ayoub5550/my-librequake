@@ -1,0 +1,28 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/MemoryCaptures/
+*.csproj
+*.sln
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.vs/
+.idea/
+*.apk
+*.aab
+*.unitypackage
+# generated (rebuild with LibreQuake menu / tools)
+/Assets/LQ/Generated/
+/Assets/LQ/Generated.meta
+/Assets/LQ/Scenes/
+/Assets/LQ/Scenes.meta

@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 283eda977fe54ad489614379617a8fbd, type: 3}
+  m_Name: ScopaProjectSettings
+  m_EditorClassIdentifier: 
+  defaultMapImportConfig: {fileID: 0}
+  editorTextureResolution: 1
+  defaultTexSize: 64
+  defaultMaterial: {fileID: 0}
+  useKeywords: 1
+  cullTextures:
+  - trigger
+  - skip
+  - hint
+  - nodraw
+  - null
+  - clip
+  - origin
+  nonsolidEntities: []
+  triggerEntities:
+  - trigger
+  - func_water
+  mergeToWorld:
+  - func_group
+  - func_detail
+  staticEntities:
+  - worldspawn
+  - func_wall
+  - func_water
+  - func_illusionary
+  addScopaEntityComponent: 1
+  callOnEntityImport: 1

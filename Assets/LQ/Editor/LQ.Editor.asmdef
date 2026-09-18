@@ -1,0 +1,14 @@
+{
+    "name": "LQ.Editor",
+    "rootNamespace": "LQ.EditorTools",
+    "references": [ "LQ.Runtime", "Scopa.Runtime", "Sledge.Formats" ],
+    "includePlatforms": [ "Editor" ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
