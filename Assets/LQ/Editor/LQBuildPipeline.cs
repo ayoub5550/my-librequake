@@ -93,6 +93,20 @@ namespace LQ.EditorTools {
             }
         }
 
+        /// <summary>Linux x86_64 player used on CI to record the demo video (run with -lqdemo).</summary>
+        public static void BuildLinuxDemo() {
+            EnsureAudioEnabled();
+            var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            Directory.CreateDirectory("Builds/Linux");
+            var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = "Builds/Linux/LibreQuake.x86_64", target = BuildTarget.StandaloneLinux64, options = BuildOptions.None };
+            var report = BuildPipeline.BuildPlayer(opts);
+            Debug.Log($"BUILD RESULT (Linux): {report.summary.result} errors={report.summary.totalErrors} time={report.summary.totalTime}");
+            if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) {
+                foreach (var step in report.steps) foreach (var msg in step.messages) if (msg.type == LogType.Error || msg.type == LogType.Exception) Debug.LogError(msg.content);
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+            }
+        }
+
         /// <summary>Everything, for batch mode.</summary>
         public static void BuildAll() {
             try {

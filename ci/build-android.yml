@@ -7,6 +7,10 @@ on:
         description: "Comma-separated map list (empty = all maps)"
         required: false
         default: ""
+      video:
+        description: "Also record the demo video (Linux player + xvfb)"
+        required: false
+        default: "true"
   push:
     branches: [main]
     paths-ignore:
@@ -28,6 +32,7 @@ jobs:
       UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
       UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
       LQ_MAPS: ${{ github.event.inputs.maps }}
+      LQ_VIDEO: ${{ github.event.inputs.video || 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +65,38 @@ jobs:
             -executeMethod "$METHOD" | grep -v "^\s*$" | tee build.log
           ls -la Builds/
 
+      - name: Build Linux demo player + record gameplay video
+        if: env.LQ_VIDEO == 'true'
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          unity-editor -batchmode -nographics -quit -logFile /dev/stdout \
+            -projectPath "$GITHUB_WORKSPACE" -buildTarget StandaloneLinux64 \
+            -executeMethod LQ.EditorTools.LQBuildPipeline.BuildLinuxDemo | grep -v "^\s*$" | tee linux-build.log
+          apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xvfb ffmpeg libgl1 libglu1-mesa libgl1-mesa-dri libxcursor1 libxrandr2 libxinerama1 libxi6 libxss1 libasound2 pulseaudio > /dev/null
+          chmod +x Builds/Linux/LibreQuake.x86_64
+          DEMO_MAP="${LQ_MAPS%%,*}"; DEMO_MAP="${DEMO_MAP:-lq_e1m1}"
+          mkdir -p Builds/frames
+          xvfb-run -a -s "-screen 0 1280x720x24" ./Builds/Linux/LibreQuake.x86_64 \
+            -screen-width 1280 -screen-height 720 -screen-fullscreen 0 -force-glcore -logFile Builds/demo.log \
+            -lqdemo -lqdemo-map "${DEMO_MAP}" -lqdemo-frames Builds/frames -lqdemo-seconds 60 || true
+          tail -50 Builds/demo.log || true
+          ls Builds/frames | wc -l
+          ffmpeg -y -framerate 30 -i Builds/frames/f%05d.png -c:v libx264 -pix_fmt yuv420p -crf 22 -movflags +faststart Builds/LibreQuake-demo.mp4
+          rm -rf Builds/frames
+
+      - name: Upload video artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibreQuake-Demo-Video
+          path: |
+            Builds/*.mp4
+            Builds/demo.log
+            linux-build.log
+          if-no-files-found: ignore
+
       - name: Upload APK artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,4 +114,6 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: LibreQuake Android build ${{ github.run_number }}
           body: "Automated Unity build from commit ${{ github.sha }}. Install `LibreQuake.apk` on Android 6.0+ (ARM64/ARMv7)."
-          files: Builds/LibreQuake.apk
+          files: |
+            Builds/LibreQuake.apk
+            Builds/LibreQuake-demo.mp4

@@ -90,6 +90,16 @@ namespace LQ {
 
         void LateUpdate() { GameInput.EndFrame(); }
 
+        /// <summary>Scripted demo: show the joystick at a fixed spot with the given direction (or hide it).</summary>
+        public void DemoStick(Vector2 dir, bool active) {
+            if (!active) { stickBase.SetActive(false); stickKnob.SetActive(false); return; }
+            if (!stickBase.activeSelf) ShowStick(new Vector2(Screen.width * 0.18f, Screen.height * 0.3f));
+            stickKnobRt.anchoredPosition = stickBaseRt.anchoredPosition + dir * stickRadius * 0.6f;
+        }
+        public void DemoHold(string label, bool held) { foreach (var b in buttons) if (b.name == "Btn" + label) b.SetHeld(held); }
+        public static TouchControls Instance { get; private set; }
+        void Awake() { Instance = this; }
+
         void ShowStick(Vector2 screenPos) {
             stickBase.SetActive(true); stickKnob.SetActive(true);
             var local = screenPos / canvas.scaleFactor;
@@ -104,6 +114,7 @@ namespace LQ {
         public void OnPointerUp(PointerEventData e) { Release(); }
         public void OnPointerExit(PointerEventData e) { if (held && e.pointerPress == gameObject) { /* keep holding while finger slides off */ } }
         void Release() { if (!held) return; held = false; onHold?.Invoke(false); img.color = baseColor; }
+        public void SetHeld(bool v) { if (v) OnPointerDown(null); else Release(); }
         void OnDisable() { Release(); }
     }
 }
