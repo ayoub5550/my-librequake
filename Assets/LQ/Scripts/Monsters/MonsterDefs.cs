@@ -39,6 +39,11 @@ namespace LQ {
                 meleeDamage = 20, meleeAnims = new[] { "swing", "smash" }, meleeSound = "ogre/ogsawatk1.wav",
                 ranged = AttackKind.Projectile, rangedDamage = 40, projectileModel = "progs/grenade.mdl", projectileSpeed = 600, projectileRadius = 40, projectileArc = true, rangedCooldown = 2f, attackAnims = new[] { "shoot" }, attackDelay = 0.3f,
                 sightSound = "ogre/ogwake.wav", idleSound = "ogre/ogidle.wav", painSound = "ogre/ogpain1.wav", deathSound = "ogre/ogdth.wav", attackSound = "weapons/grenade.wav" });
+            // LibreQuake variant: ogre that only uses the grenade launcher (same model, same head).
+            Add(new MonsterDef { classname = "monster_ogre_marksman", model = "progs/ogre.mdl", headModel = "progs/h_ogre.mdl", health = 200, speed = 3f, big = true,
+                meleeDamage = 20, meleeAnims = new[] { "swing", "smash" }, meleeSound = "ogre/ogsawatk1.wav",
+                ranged = AttackKind.Projectile, rangedDamage = 40, projectileModel = "progs/grenade.mdl", projectileSpeed = 600, projectileRadius = 40, projectileArc = true, rangedCooldown = 1.4f, attackAnims = new[] { "shoot" }, attackDelay = 0.3f,
+                sightSound = "ogre/ogwake.wav", idleSound = "ogre/ogidle.wav", painSound = "ogre/ogpain1.wav", deathSound = "ogre/ogdth.wav", attackSound = "weapons/grenade.wav" });
             Add(new MonsterDef { classname = "monster_knight", model = "progs/knight.mdl", headModel = "progs/h_knight.mdl", health = 75, speed = 4f,
                 meleeDamage = 12, meleeAnims = new[] { "attackb", "runattack" }, meleeSound = "knight/sword1.wav", attackDelay = 0.5f,
                 sightSound = "knight/ksight.wav", idleSound = "knight/idle.wav", painSound = "knight/khurt.wav", deathSound = "knight/kdeath.wav" });

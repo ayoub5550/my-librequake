@@ -26,6 +26,12 @@ namespace LQ {
                 var go = e.gameObject; var cn = e.classname;
                 if (cn == "worldspawn") { info.message = e.Get("message", ""); info.worldtype = e.GetInt("worldtype", 0); continue; }
                 if (cn == "info_player_start" || cn == "info_player_deathmatch" || cn == "info_player_coop" || cn == "info_player_start2") { playerStarts.Add(e); continue; }
+                // Quake skill / deathmatch spawnflags: NOT_IN_EASY=256, NOT_IN_NORMAL=512, NOT_IN_HARD=1024 (nightmare uses HARD), NOT_IN_DEATHMATCH=2048 (we are always single-player).
+                {
+                    int skill = GameManager.Instance != null ? GameManager.Instance.skill : 1;
+                    int notFlag = skill <= 0 ? 256 : skill == 1 ? 512 : 1024;
+                    if (e.HasFlag(notFlag)) { Destroy(go); continue; }
+                }
                 if (cn.StartsWith("monster_")) {
                     var def = MonsterDef.Get(cn);
                     if (def != null) {
@@ -55,6 +61,11 @@ namespace LQ {
                     case "trigger_setskill": go.AddComponent<TriggerSetSkill>(); break;
                     case "trigger_monsterjump": go.AddComponent<TriggerMonsterJump>(); break;
                     case "misc_explobox": case "misc_explobox2": ExploBox.Attach(go, e); break;
+                    case "trap_spikeshooter": TrapSpikeshooter.Attach(go, e, false); break;
+                    case "trap_shooter": TrapSpikeshooter.Attach(go, e, true); break;
+                    case "misc_fireball": MiscFireball.Attach(go, e); break;
+                    case "air_bubbles": AirBubbles.Attach(go, e); break;
+                    case "event_lightning": EventLightning.Attach(go, e); break;
                     case "light_torch_small_walltorch": case "light_flame_large_yellow": case "light_flame_small_yellow": case "light_flame_small_white":
                         Flames.Attach(go, cn); AmbientSounds.Attach(go, cn); break;
                     case "func_episodegate": {
