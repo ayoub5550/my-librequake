@@ -23,10 +23,12 @@ namespace LQ {
             stickBaseRt = stickBase.GetComponent<RectTransform>(); stickKnobRt = stickKnob.GetComponent<RectTransform>();
             stickBase.SetActive(false); stickKnob.SetActive(false);
             // buttons (right side)
-            fireBtn = MakeButton("FIRE", new Vector2(1, 0), new Vector2(-150, 150), 150, new Color(0.8f, 0.2f, 0.1f, 0.55f), v => GameInput.touchFire = v);
-            jumpBtn = MakeButton("JUMP", new Vector2(1, 0), new Vector2(-300, 60), 100, new Color(0.2f, 0.5f, 0.9f, 0.5f), v => GameInput.touchJump = v);
-            MakeButton(">", new Vector2(1, 0), new Vector2(-60, 320), 76, new Color(1, 1, 1, 0.35f), v => { if (v) GameInput.touchNextWeapon = true; });
-            MakeButton("<", new Vector2(1, 0), new Vector2(-60, 410), 76, new Color(1, 1, 1, 0.35f), v => { if (v) GameInput.touchPrevWeapon = true; });
+            // Layout (reference 1280x720, anchored bottom-right). FIRE is big and also acts as an aim surface:
+            // dragging the finger that holds FIRE turns the camera, so you can aim while shooting.
+            fireBtn = MakeButton("FIRE", new Vector2(1, 0), new Vector2(-170, 170), 190, new Color(0.8f, 0.2f, 0.1f, 0.55f), v => GameInput.touchFire = v);
+            jumpBtn = MakeButton("JUMP", new Vector2(1, 0), new Vector2(-340, 70), 110, new Color(0.2f, 0.5f, 0.9f, 0.5f), v => GameInput.touchJump = v);
+            MakeButton("WPN +", new Vector2(1, 0), new Vector2(-70, 345), 100, new Color(1, 1, 1, 0.35f), v => { if (v) GameInput.touchNextWeapon = true; });
+            MakeButton("WPN -", new Vector2(1, 0), new Vector2(-70, 455), 100, new Color(1, 1, 1, 0.35f), v => { if (v) GameInput.touchPrevWeapon = true; });
             SetVisible(false);
         }
 
@@ -62,9 +64,16 @@ namespace LQ {
             for (int i = 0; i < Input.touchCount; i++) {
                 var t = Input.GetTouch(i);
                 if (t.phase == TouchPhase.Began) {
-                    if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(t.fingerId)) continue;
+                    bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(t.fingerId);
+                    if (overUi) {
+                        // finger landed on FIRE: let it aim as well (handled below once HoldButton registered the press)
+                        continue;
+                    }
                     if (t.position.x < Screen.width * 0.4f && moveFinger < 0) { moveFinger = t.fingerId; moveOrigin = t.position; ShowStick(t.position); }
                     else if (lookFinger < 0) lookFinger = t.fingerId;
+                }
+                if (lookFinger < 0 && fireBtn != null && fireBtn.IsHeld && fireBtn.pointerId == t.fingerId && t.fingerId != moveFinger) {
+                    lookFinger = t.fingerId; // aim with the FIRE finger
                 }
                 if (t.fingerId == moveFinger) {
                     moveSeen = true;

@@ -12,7 +12,7 @@ namespace LQ {
         public static bool uiBlocked;             // menus open
 
         public static float mouseSensitivity = 2.0f;
-        public static float touchSensitivity = 0.25f;  // degrees per pixel (scaled by DPI)
+        public static float touchSensitivity = 0.35f;  // degrees per pixel (scaled by DPI)
         public static bool invertY;
 
         static bool jumpConsumed, nextConsumed, prevConsumed;
