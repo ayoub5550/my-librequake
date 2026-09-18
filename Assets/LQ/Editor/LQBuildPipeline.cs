@@ -203,8 +203,31 @@ namespace LQ.EditorTools {
             if (prop != null && prop.boolValue) { prop.boolValue = false; so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets(); Debug.Log("AudioManager: re-enabled Unity audio for the player build"); }
         }
 
+        /// <summary>Shaders that are only referenced at runtime via Shader.Find() get stripped from player builds
+        /// unless they live in Resources/ or are in GraphicsSettings "Always Included Shaders". The LQ shaders now
+        /// live in Assets/LQ/Resources/Shaders (always included); this additionally pins them + the built-in fallbacks.</summary>
+        static void EnsureShadersIncluded() {
+            string[] names = { "LQ/World", "LQ/Model", "LQ/Sprite", "LQ/Particle", "LQ/Liquid", "LQ/Sky", "Unlit/Texture", "Sprites/Default", "UI/Default" };
+            var gs = UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings();
+            var so = new SerializedObject(gs);
+            var arr = so.FindProperty("m_AlwaysIncludedShaders");
+            var have = new HashSet<Shader>();
+            for (int i = 0; i < arr.arraySize; i++) { var sh = arr.GetArrayElementAtIndex(i).objectReferenceValue as Shader; if (sh) have.Add(sh); }
+            int added = 0;
+            foreach (var n in names) {
+                var sh = Shader.Find(n);
+                if (sh == null) { Debug.LogWarning("[LQ] shader not found in editor: " + n); continue; }
+                if (have.Contains(sh)) continue;
+                arr.InsertArrayElementAtIndex(arr.arraySize);
+                arr.GetArrayElementAtIndex(arr.arraySize - 1).objectReferenceValue = sh; added++;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Debug.Log($"[LQ] AlwaysIncludedShaders: +{added} (total {arr.arraySize})");
+        }
+
         static void ConfigurePlayerSettings() {
             EnsureAudioEnabled();
+            EnsureShadersIncluded();
             PlayerSettings.companyName = "Ayoub Teke";
             PlayerSettings.productName = "LibreQuake";
             PlayerSettings.bundleVersion = "0.1.0";

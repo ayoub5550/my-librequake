@@ -9,7 +9,7 @@
 **ما يحتويه المستودع:**
 
 - `Assets/LQ/Scripts` — كود اللعبة (C#): اللاعب، الأسلحة، الوحوش والذكاء الاصطناعي، الكيانات (الأبواب، المصاعد، المفاتيح، الأزرار، الأسرار، الانتقال بين المستويات)، الواجهة (HUD)، القائمة الرئيسية، وأزرار اللمس للأندرويد.
-- `Assets/LQ/Shaders` — شيدرات عالم Quake، النماذج، السوائل، السماء، الجزيئات.
+- `Assets/LQ/Resources/Shaders` — شيدرات عالم Quake، النماذج، السوائل، السماء، الجزيئات.
 - `Assets/LQ/Textures` و `Assets/LQ/Resources` — موارد LibreQuake الكاملة (الخامات، نماذج `.mdl`، الأصوات، رسوميات الواجهة، لوحة الألوان).
 - `MapSources/*.map` — مصادر كل خرائط LibreQuake (صيغة TrenchBroom) — تُستورد آلياً إلى مشاهد Unity.
 - `Assets/LQ/Editor/LQBuildPipeline.cs` — خط الإنتاج: استيراد الخامات → النماذج → الخرائط → بناء APK.
@@ -46,7 +46,7 @@ A full rebuild of **LibreQuake** (the libre Quake content replacement) as a nati
 | Path | Contents |
 | --- | --- |
 | `Assets/LQ/Scripts` | Game code (C#): player controller, weapons, monsters & AI, entities (doors, plats, buttons, triggers, secrets, level changes), HUD, main menu, Android touch controls |
-| `Assets/LQ/Shaders` | Quake-style world / model / liquid / sky / sprite / particle shaders |
+| `Assets/LQ/Resources/Shaders` | Quake-style world / model / liquid / sky / sprite / particle shaders |
 | `Assets/LQ/Textures`, `Assets/LQ/Resources` | Complete LibreQuake assets: textures, `.mdl` models, sounds, HUD graphics, palette |
 | `MapSources/*.map` | Every LibreQuake map source (TrenchBroom / Valve 220) — imported into Unity scenes automatically |
 | `Assets/LQ/Editor/LQBuildPipeline.cs` | Build pipeline: import textures → brush models → maps → build APK |

@@ -19,9 +19,20 @@ Status (2026-09-18):
 - Complete C# runtime: player (FPS + touch), 8 weapons, monsters/AI, doors, plats,
   buttons, triggers, secrets, level change, HUD, main menu, Android touch controls.
 - Build pipeline imports any subset of the 75 LibreQuake maps.
-- **First Android APK built successfully on Unity Cloud Build (Build Automation)**,
-  build target `Android`, e1m1 only (`LQ_MAPS=lq_e1m1`), 43 MB, IL2CPP arm64-v8a + armeabi-v7a.
-- Full-game (all maps) build not yet completed — see §6.
+- **Android APKs built on Unity Cloud Build (Build Automation)**, target `Android`:
+  - Build #1: e1m1 only (`LQ_MAPS=lq_e1m1`), 43 MB, 25 min.
+  - Build #2: **full game, all 40 single-player maps** (`LQ_MAPS` empty), 148 MB, 33 min,
+    published as GitHub Release `v0.1.0`. Deathmatch (`lqdm*`), `dev`, `start_e0` and the
+    `b_*` item-box maps are excluded on purpose by `MapList()`.
+- **Bug found on device after build #2: monsters, weapons, items, sprites and particles were
+  invisible.** Cause: `LQ/Model`, `LQ/Sprite`, `LQ/Particle` (and the `Unlit/Texture`
+  fallback) are only referenced at runtime via `Shader.Find`, so Unity stripped them from the
+  player (the build log's "Serialized binary data for shader …" lines listed only World/Liquid/Sky).
+  Fix: shaders moved to `Assets/LQ/Resources/Shaders/` (Resources are always included) and
+  pinned in `GraphicsSettings.m_AlwaysIncludedShaders` (also enforced by
+  `EnsureShadersIncluded()` in `ConfigurePlayerSettings`). Build #3 = first build with the fix.
+- Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
+  a `Resources/` folder or be referenced by a serialized asset**, otherwise it is stripped.
 
 ## 2. Repository map
 
@@ -29,7 +40,7 @@ Status (2026-09-18):
 | --- | --- |
 | `Assets/LQ/Scripts/` | Runtime C# (assembly `LQ.Runtime`, namespace `LQ`). Sub-folders: `Core` (palette, MDL/SPR loaders, combat), `Player`, `Weapons`, `Monsters`, `Entities` (doors, plats, triggers, items, liquids), `Game` (GameManager, LevelSetup, DemoRunner), `UI` (HUD, TouchControls, MainMenu). |
 | `Assets/LQ/Editor/LQBuildPipeline.cs` | The whole import/build pipeline (namespace `LQ.EditorTools`). Menu `LibreQuake/…` and static entry points for `-executeMethod`. |
-| `Assets/LQ/Shaders/` | Quake-style world, model, liquid, sky, sprite, particle shaders. |
+| `Assets/LQ/Resources/Shaders/` | Quake-style world, model, liquid, sky, sprite, particle shaders (in Resources so they are never stripped). |
 | `Assets/LQ/Textures/` (2538 PNG), `Assets/LQ/Resources/` | LibreQuake assets (textures, models, sounds, HUD gfx, `palette.lmp`). Licence: `LICENSE-LibreQuake-assets.txt`. |
 | `MapSources/*.map` | All 75 LibreQuake maps (TrenchBroom, Valve 220 format). Input for the importer. |
 | `Assets/LQ/Generated/`, `Assets/LQ/Scenes/` | **Generated, git-ignored.** Meshes, materials and `.unity` scenes produced by the importer. Rebuild them, never commit them. |
@@ -105,16 +116,19 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-1. **Full build**: clear `LQ_MAPS` on the Cloud Build target (Configurations → Android →
-   Advanced → Environment variables) and build. Watch the free-tier minute budget: import
-   of all 75 maps is single-threaded and may take > 1 h. If it exceeds the budget, build
-   episode by episode (`LQ_MAPS=start,lq_e1m1,…,lq_e1m8`) or cache `Assets/LQ/Scenes`.
-2. **Play-test on a device** and fix what the log warns about (search the Cloud Build log
-   for `[warning]` and `[LQ]`).
-3. Known code TODOs: `Monster.NoiseAt` should ignore monsters with `AmbushMarker`; the
+1. **Verify build #3 on a device**: monsters/weapons/items must now render. If something is
+   still invisible, check the Cloud Build log for "Serialized binary data for shader" lines —
+   every `LQ/*` shader must appear there.
+2. **Play-test and collect device bugs** (owner reports: several gameplay errors in build #2,
+   details pending). Use `adb logcat -s Unity` on the device; every runtime problem logs with the
+   `[LQ]`/`MdlLoader`/`Monster` prefixes. Fix, push to `main`, press Build on the `Android`
+   target (≈33 min, free tier ≈ 200 min/month — check remaining minutes first).
+3. If the full import ever exceeds the budget, build episode by episode
+   (`LQ_MAPS=start,lq_e1m1,…,lq_e1m8`).
+4. Known code TODOs: `Monster.NoiseAt` should ignore monsters with `AmbushMarker`; the
    skill multiplier in `GameManager` is not applied yet; no save/load between sessions;
    music (`--music` staging option) is disabled by default to keep the APK small.
-4. Gameplay video: run a Linux/Windows player with `-lqdemo -lqdemo-map lq_e1m1 -lqdemo-frames DIR`
+5. Gameplay video (not possible from the sandbox — no GPU/KVM; record on a device instead): run a Linux/Windows player with `-lqdemo -lqdemo-map lq_e1m1 -lqdemo-frames DIR`
    (`DemoRunner` dumps `f%05d.png` at 30 fps) and encode with ffmpeg.
 
 ## 7. Working conventions
