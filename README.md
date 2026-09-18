@@ -13,17 +13,19 @@
 - `Assets/LQ/Textures` و `Assets/LQ/Resources` — موارد LibreQuake الكاملة (الخامات، نماذج `.mdl`، الأصوات، رسوميات الواجهة، لوحة الألوان).
 - `MapSources/*.map` — مصادر كل خرائط LibreQuake (صيغة TrenchBroom) — تُستورد آلياً إلى مشاهد Unity.
 - `Assets/LQ/Editor/LQBuildPipeline.cs` — خط الإنتاج: استيراد الخامات → النماذج → الخرائط → بناء APK.
-- `.github/workflows/build-android.yml` — بناء APK آلي على GitHub Actions.
+- `ci/build-android.yml` — (اختياري) بناء APK على GitHub Actions. البناء الحالي يتم عبر **Unity Cloud Build**.
+- `AGENTS.md` — دليل للمطورين والوكلاء الذكيين لفهم المشروع ومواصلته.
 - `tools/` — سكربتات Python لتحضير الموارد من مستودع LibreQuake الأصلي.
 
 **أزرار اللمس (أندرويد):** عصا تحكم يسارية للحركة، سحب على يمين الشاشة للنظر، أزرار FIRE و JUMP، تبديل السلاح `<` `>`، وزر إيقاف. الأزرار تتكيّف مع حجم الشاشة ومنطقة الأمان (Safe Area).
 
-**كيف تبني APK:**
+**كيف تبني APK (Unity Cloud Build — الطريقة المعتمدة):**
 
-0. (مرة واحدة) انسخ الملف `ci/build-android.yml` إلى `.github/workflows/build-android.yml` عبر واجهة GitHub (Add file → Create new file).
-1. أضف سرّين في إعدادات المستودع (Settings → Secrets → Actions): `UNITY_EMAIL` و `UNITY_PASSWORD` (حساب Unity شخصي).
-2. افتح تبويب **Actions → Build Android APK → Run workflow**. اترك حقل `maps` فارغاً لبناء كل الخرائط، أو اكتب مثلاً `lq_e1m1,start` لبناء سريع.
-3. بعد انتهاء العمل ستجد `LibreQuake.apk` في **Artifacts** وفي صفحة **Releases**.
+1. المشروع مرتبط بـ Unity Cloud Build عبر SSH (مفتاح Deploy Key للقراءة فقط على هذا المستودع).
+2. هدف البناء `Android` مضبوط مسبقاً: Unity 2022.3.62f3، Pre-Export `LQ.EditorTools.LQBuildPipeline.CloudPreExport`، متغير البيئة `LQ_MAPS` يحدد الخرائط (فارغ = كل الخرائط).
+3. من **Build history → Build**. أول APK (e1m1) استغرق 25 دقيقة. حمّل `Android.apk` من قائمة التنزيل.
+
+التفاصيل الكاملة وخطوات المتابعة في `AGENTS.md`.
 
 **البناء محلياً (Unity Editor 2022.3.62f3 + Android module):** افتح المشروع، ثم من القائمة `LibreQuake` نفّذ الخطوات 1 → 2 → 3 ثم `Build Android APK`، أو من الطرفية:
 
@@ -48,7 +50,8 @@ A full rebuild of **LibreQuake** (the libre Quake content replacement) as a nati
 | `Assets/LQ/Textures`, `Assets/LQ/Resources` | Complete LibreQuake assets: textures, `.mdl` models, sounds, HUD graphics, palette |
 | `MapSources/*.map` | Every LibreQuake map source (TrenchBroom / Valve 220) — imported into Unity scenes automatically |
 | `Assets/LQ/Editor/LQBuildPipeline.cs` | Build pipeline: import textures → brush models → maps → build APK |
-| `.github/workflows/build-android.yml` | CI: builds the APK on GitHub Actions and publishes it as an artifact + release |
+| `ci/build-android.yml` | Optional GitHub Actions workflow. Current builds run on **Unity Cloud Build** |
+| `AGENTS.md` | Guide for developers / AI agents: architecture, pipeline, Cloud Build setup, next steps |
 | `tools/` | Python scripts that stage assets from the upstream LibreQuake repo |
 
 ### Touch controls
@@ -57,12 +60,15 @@ Left virtual joystick (move), drag on the right half (look), **FIRE**, **JUMP**,
 
 ### Building the APK
 
-**GitHub Actions (recommended)**
+**Unity Cloud Build (current, working)**
 
-0. (once) copy `ci/build-android.yml` to `.github/workflows/build-android.yml` (GitHub web UI → Add file → Create new file — the file lives in `ci/` because the bot account that pushed this repo is not allowed to create workflow files).
-1. Add repository secrets `UNITY_EMAIL` and `UNITY_PASSWORD` (a Unity Personal account).
-2. **Actions → Build Android APK → Run workflow.** Leave `maps` empty for all maps, or e.g. `lq_e1m1,start` for a quick build.
-3. Download `LibreQuake.apk` from the run's **Artifacts** or the **Releases** page.
+1. The Unity Cloud project pulls this repo over SSH (read-only deploy key).
+2. Build target `Android`: Unity 2022.3.62f3, Pre-Export method `LQ.EditorTools.LQBuildPipeline.CloudPreExport`, env var `LQ_MAPS` selects the maps (empty = all).
+3. **Build history → Build**; download `Android.apk` when it finishes (e1m1-only build: ~25 min).
+
+See `AGENTS.md` for the full setup, the REST endpoint and what to do next.
+
+**GitHub Actions (optional, untested)**: copy `ci/build-android.yml` to `.github/workflows/`, add secrets `UNITY_EMAIL` / `UNITY_PASSWORD`, run *Build Android APK*.
 
 **Locally** (Unity 2022.3.62f3 with the Android module): open the project and use the `LibreQuake` menu steps 1 → 2 → 3 → *Build Android APK*, or:
 

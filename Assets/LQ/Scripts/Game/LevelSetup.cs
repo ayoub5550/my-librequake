@@ -91,5 +91,4 @@ namespace LQ {
         }
     }
 
-    public class AmbushMarker : MonoBehaviour { }
 }

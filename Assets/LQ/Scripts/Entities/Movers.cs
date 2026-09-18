@@ -236,11 +236,6 @@ namespace LQ {
         }
     }
 
-    public class DoorField : MonoBehaviour {
-        public FuncDoor door;
-        void OnTriggerEnter(Collider other) { door?.Touched(other.gameObject); }
-        void OnTriggerStay(Collider other) { door?.Touched(other.gameObject); }
-    }
 
     // -------------------------------------------------------------------------------------------------
     /// <summary>func_door_secret: moves back then sideways (simplified: back into the wall, then along the wall).</summary>
@@ -306,10 +301,6 @@ namespace LQ {
         public void TakeDamage(DamageInfo info) { if (ent.HasFlag(YES_SHOOT) || health > 0) Activate(info.attacker); }
     }
 
-    public class SecretField : MonoBehaviour {
-        public FuncDoorSecret door;
-        void OnTriggerEnter(Collider other) { door?.Touched(other.gameObject); }
-    }
 
     // -------------------------------------------------------------------------------------------------
     public class FuncPlat : Mover, IActivatable {
@@ -365,11 +356,6 @@ namespace LQ {
         }
     }
 
-    public class PlatField : MonoBehaviour {
-        public FuncPlat plat;
-        void OnTriggerEnter(Collider other) { plat?.Touched(other.gameObject); }
-        void OnTriggerStay(Collider other) { plat?.Touched(other.gameObject); }
-    }
 
     // -------------------------------------------------------------------------------------------------
     public class FuncButton : Mover, IActivatable, IDamageable {
@@ -419,10 +405,6 @@ namespace LQ {
         public void TakeDamage(DamageInfo info) { if (health > 0) { health -= info.amount; if (health <= 0) { health = ent.GetFloat("health", 0); Press(info.attacker); } } }
     }
 
-    public class ButtonField : MonoBehaviour {
-        public FuncButton button;
-        void OnTriggerEnter(Collider other) { button?.Touched(other.gameObject); }
-    }
 
     // -------------------------------------------------------------------------------------------------
     /// <summary>func_train: follows path_corner entities.</summary>
