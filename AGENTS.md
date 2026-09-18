@@ -30,7 +30,10 @@ Status (2026-09-18):
   player (the build log's "Serialized binary data for shader …" lines listed only World/Liquid/Sky).
   Fix: shaders moved to `Assets/LQ/Resources/Shaders/` (Resources are always included) and
   pinned in `GraphicsSettings.m_AlwaysIncludedShaders` (also enforced by
-  `EnsureShadersIncluded()` in `ConfigurePlayerSettings`). Build #3 = first build with the fix.
+  `EnsureShadersIncluded()` in `ConfigurePlayerSettings`).
+  - Build #4 (commit `bacdbe6`, 29 min): **fix verified in the build log** — all six LQ shaders
+    are now serialized. Published as GitHub Release `v0.1.1` (148 MB). Also ships bigger touch
+    buttons (FIRE 190 px, JUMP 110 px, WPN +/-) and aim-while-firing. Awaiting device test.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
   a `Resources/` folder or be referenced by a serialized asset**, otherwise it is stripped.
 
