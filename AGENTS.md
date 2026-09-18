@@ -33,7 +33,17 @@ Status (2026-09-18):
   `EnsureShadersIncluded()` in `ConfigurePlayerSettings`).
   - Build #4 (commit `bacdbe6`, 29 min): **fix verified in the build log** — all six LQ shaders
     are now serialized. Published as GitHub Release `v0.1.1` (148 MB). Also ships bigger touch
-    buttons (FIRE 190 px, JUMP 110 px, WPN +/-) and aim-while-firing. Awaiting device test.
+    buttons (FIRE 190 px, JUMP 110 px, WPN +/-) and aim-while-firing. Device test: weapons and
+    monsters render ✅, but the EASY/NORMAL/HARD portals in the `start` map did not teleport.
+  - Build #5 (commit `c578317`, 38 min): **start-map portal fix**, Release `v0.1.2`. Cause was a
+    registry race: `LevelSetup.Awake` called `QEntity.ClearRegistry()` after entities from the
+    same scene had already registered, so `trigger_teleport` could not resolve its `target`.
+    Now `PruneRegistry()` only drops destroyed entries, `FindByTargetName` falls back to
+    `FindObjectsOfType<QEntity>`, `TriggerTeleport` logs a warning when no destination exists,
+    `TriggerBase` falls back to a BoxCollider (and forces MeshColliders convex) and the prepass
+    keeps `*tele*` brushes solid. Awaiting device test.
+- Lesson: never clear a static registry in `Awake` of a scene object — other objects' `Awake`
+  order is undefined; prune instead.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
   a `Resources/` folder or be referenced by a serialized asset**, otherwise it is stripped.
 
@@ -119,7 +129,7 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-1. **Verify build #3 on a device**: monsters/weapons/items must now render. If something is
+1. **Verify build #5 (v0.1.2) on a device**: start-map portals must teleport into the episode maps. If something is
    still invisible, check the Cloud Build log for "Serialized binary data for shader" lines —
    every `LQ/*` shader must appear there.
 2. **Play-test and collect device bugs** (owner reports: several gameplay errors in build #2,
@@ -136,6 +146,10 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 7. Working conventions
 
+- Git: the sandbox filesystem is slow — run long git ops in the background and never two at
+  once (`index.lock`). Pushing needs the authenticated GitHub helper, plain `git push` has no credentials.
+- Cloud Build minutes are scarce (free tier 200/month, ≈70 left after build #5): batch several
+  fixes per build.
 - Commit source only; never commit `Library/`, `Builds/`, `Assets/LQ/Generated`, `Assets/LQ/Scenes`, APKs.
 - Keep `README.md` (Arabic + English) in sync with build instructions.
 - Licences: code MIT (`LICENSE`); LibreQuake assets under their own licence
