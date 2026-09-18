@@ -57,7 +57,20 @@ namespace LQ {
                     case "misc_explobox": case "misc_explobox2": ExploBox.Attach(go, e); break;
                     case "light_torch_small_walltorch": case "light_flame_large_yellow": case "light_flame_small_yellow": case "light_flame_small_white":
                         Flames.Attach(go, cn); AmbientSounds.Attach(go, cn); break;
-                    case "func_wall": case "func_illusionary": case "func_episodegate": case "func_bossgate": case "func_detail_wall": case "func_detail_illusionary": break;
+                    case "func_episodegate": {
+                        // Quake QC: the gate only spawns when its episode is already completed (serverflags & spawnflags).
+                        // With no runes every gate must vanish, otherwise all episode entrances look "closed".
+                        int runes = GameManager.Instance != null ? GameManager.Instance.runes : 0;
+                        if ((runes & (e.spawnflags & 15)) == 0) { Destroy(go); continue; }
+                        break;
+                    }
+                    case "func_bossgate": {
+                        // Quake QC: the boss gate is removed once all four runes are collected.
+                        int runes = GameManager.Instance != null ? GameManager.Instance.runes : 0;
+                        if ((runes & 15) == 15) { Destroy(go); continue; }
+                        break;
+                    }
+                    case "func_wall": case "func_illusionary": case "func_detail_wall": case "func_detail_illusionary": break;
                     default:
                         if (cn.StartsWith("ambient_") || cn == "light_fluoro" || cn == "light_fluorospark") AmbientSounds.Attach(go, cn);
                         break;
