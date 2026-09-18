@@ -20,6 +20,7 @@
 
 **كيف تبني APK:**
 
+0. (مرة واحدة) انسخ الملف `ci/build-android.yml` إلى `.github/workflows/build-android.yml` عبر واجهة GitHub (Add file → Create new file).
 1. أضف سرّين في إعدادات المستودع (Settings → Secrets → Actions): `UNITY_EMAIL` و `UNITY_PASSWORD` (حساب Unity شخصي).
 2. افتح تبويب **Actions → Build Android APK → Run workflow**. اترك حقل `maps` فارغاً لبناء كل الخرائط، أو اكتب مثلاً `lq_e1m1,start` لبناء سريع.
 3. بعد انتهاء العمل ستجد `LibreQuake.apk` في **Artifacts** وفي صفحة **Releases**.
@@ -58,6 +59,7 @@ Left virtual joystick (move), drag on the right half (look), **FIRE**, **JUMP**,
 
 **GitHub Actions (recommended)**
 
+0. (once) copy `ci/build-android.yml` to `.github/workflows/build-android.yml` (GitHub web UI → Add file → Create new file — the file lives in `ci/` because the bot account that pushed this repo is not allowed to create workflow files).
 1. Add repository secrets `UNITY_EMAIL` and `UNITY_PASSWORD` (a Unity Personal account).
 2. **Actions → Build Android APK → Run workflow.** Leave `maps` empty for all maps, or e.g. `lq_e1m1,start` for a quick build.
 3. Download `LibreQuake.apk` from the run's **Artifacts** or the **Releases** page.

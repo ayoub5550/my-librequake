@@ -1,0 +1,80 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      maps:
+        description: "Comma-separated map list (empty = all maps)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Import maps + build APK (Unity 2022.3.62f3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    container:
+      image: unityci/editor:ubuntu-2022.3.62f3-android-3
+    env:
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+      LQ_MAPS: ${{ github.event.inputs.maps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Packages/manifest.json', 'ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-Android-
+
+      - name: Activate Unity (Personal licence via account)
+        shell: bash
+        run: |
+          mkdir -p /tmp/Blank/Assets
+          for i in 1 2 3 4 5; do
+            unity-editor -batchmode -nographics -quit -logFile /dev/stdout \
+              -username "$UNITY_EMAIL" -password "$UNITY_PASSWORD" -projectPath /tmp/Blank && break
+            echo "activation attempt $i failed, retrying..."; sleep $((i*20))
+          done
+
+      - name: Import LibreQuake maps + build APK
+        shell: bash
+        run: |
+          set -o pipefail
+          METHOD=LQ.EditorTools.LQBuildPipeline.BuildAll
+          if [ -n "$LQ_MAPS" ]; then METHOD=LQ.EditorTools.LQBuildPipeline.BuildSelected; fi
+          unity-editor -batchmode -nographics -quit -logFile /dev/stdout \
+            -projectPath "$GITHUB_WORKSPACE" -buildTarget Android \
+            -executeMethod "$METHOD" | grep -v "^\s*$" | tee build.log
+          ls -la Builds/
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibreQuake-Android
+          path: |
+            Builds/*.apk
+            build.log
+          if-no-files-found: warn
+
+      - name: Publish release (main branch only)
+        if: github.ref == 'refs/heads/main' && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: LibreQuake Android build ${{ github.run_number }}
+          body: "Automated Unity build from commit ${{ github.sha }}. Install `LibreQuake.apk` on Android 6.0+ (ARM64/ARMv7)."
+          files: Builds/LibreQuake.apk
