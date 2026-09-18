@@ -42,10 +42,16 @@ Status (2026-09-18):
     `FindObjectsOfType<QEntity>`, `TriggerTeleport` logs a warning when no destination exists,
     `TriggerBase` falls back to a BoxCollider (and forces MeshColliders convex) and the prepass
     keeps `*tele*` brushes solid. Awaiting device test.
-  - Unbuilt on `main` (commit `afd2af0`, waiting for more device bugs to batch into build #6):
-    `func_episodegate` is now removed unless the player owns that episode's rune and
-    `func_bossgate` is removed once all four runes are owned (Quake QC semantics). Before this
-    the gates were treated as plain walls, so every EPISODE entrance in `start` looked closed.
+  - Build #6 (commit `de46cd1`, 32 min): Release `v0.1.3`. Contents: `func_episodegate` is
+    removed unless the player owns that episode's rune and `func_bossgate` is removed once all
+    four runes are owned (Quake QC semantics — before this every EPISODE entrance in `start`
+    looked closed); new entities `trap_spikeshooter`/`trap_shooter` (`TrapSpikeshooter`),
+    `misc_fireball`, `air_bubbles`, `event_lightning`; `monster_ogre_marksman`; per-skill
+    spawnflag filtering (NOT_IN_EASY 256 / NORMAL 512 / HARD 1024 → entity destroyed after the
+    player start is resolved). After this an audit of all 40 SP maps against `LevelSetup`,
+    `Item` and `MonsterDefs` shows no unhandled gameplay classnames — only `func_group`
+    (editor grouping), `path_corner` (consumed by `func_train`) and `viewthing` remain.
+    Awaiting device test.
 - Lesson: never clear a static registry in `Awake` of a scene object — other objects' `Awake`
   order is undefined; prune instead.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
@@ -97,6 +103,15 @@ name as the class**, otherwise Unity records "missing script" in the build. All
 MonoBehaviours are now one-class-per-file. Keep it that way (the compile check does not
 catch this; only the build log warning `Script attached to '…' is missing` does).
 
+### Local compile check (no Cloud Build minutes)
+The Unity Editor can compile the scripts headless (no player build — the shader compiler
+crashes in the sandbox): `Unity -batchmode -nographics -username … -password … -projectPath
+<project> -logFile log.txt -quit`. Success = exit code 0 and "Exiting batchmode successfully";
+`grep "error CS" log.txt` lists compile errors. If the log says "Invalid ILPostProcessor
+configuration … Scripts have compiler errors" with zero `CS` errors, stale
+`Unity.ILPP.Runner`/`Unity` processes from a previous run are the cause — kill them, delete
+`/tmp/ilpp.sock-*` and `Temp/UnityLockfile`, rerun. Always run this before pushing.
+
 ## 4. Building the APK — Unity Cloud Build (current, working)
 
 Project **LibreQuake** in Unity Cloud (org `11270707950591`, project id
@@ -133,11 +148,12 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-1. **Verify build #5 (v0.1.2) on a device**: start-map portals must teleport into the episode maps. If something is
-   still invisible, check the Cloud Build log for "Serialized binary data for shader" lines —
-   every `LQ/*` shader must appear there.
+1. **Verify build #6 (v0.1.3) on a device**: EPISODE gates in `start` open only with runes,
+   traps fire, fireballs/bubbles/lightning appear, skill filtering matches the original game.
+   If something is invisible, check the Cloud Build log for "Serialized binary data for shader"
+   lines — every `LQ/*` shader must appear there.
 2. **Play-test and collect device bugs** (owner reports: several gameplay errors in build #2,
-   details pending). Use `adb logcat -s Unity` on the device; every runtime problem logs with the
+   details pending; the touch-button complaint is still unspecified — ask for a screen recording). Use `adb logcat -s Unity` on the device; every runtime problem logs with the
    `[LQ]`/`MdlLoader`/`Monster` prefixes. Fix, push to `main`, press Build on the `Android`
    target (≈33 min, free tier ≈ 200 min/month — check remaining minutes first).
 3. If the full import ever exceeds the budget, build episode by episode
@@ -152,7 +168,7 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 - Git: the sandbox filesystem is slow — run long git ops in the background and never two at
   once (`index.lock`). Pushing needs the authenticated GitHub helper, plain `git push` has no credentials.
-- Cloud Build minutes are scarce (free tier 200/month, ≈70 left after build #5): batch several
+- Cloud Build minutes are scarce (free tier 200/month, ≈30 left after build #6 — likely no more builds until the monthly reset): batch several
   fixes per build.
 - Commit source only; never commit `Library/`, `Builds/`, `Assets/LQ/Generated`, `Assets/LQ/Scenes`, APKs.
 - Keep `README.md` (Arabic + English) in sync with build instructions.
