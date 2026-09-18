@@ -363,7 +363,8 @@ namespace LQ.EditorTools {
                     var names = s.Faces.Select(f => f.TextureName.ToLowerInvariant()).ToList();
                     bool allUtility = names.All(n => n == "skip" || n == "hint" || n == "hintskip" || n.EndsWith("skip") && n.StartsWith("*") || n == "trigger" && isWorld);
                     if (allUtility && (isWorld || (ent.ClassName ?? "").StartsWith("func_"))) { ent.Children.RemoveAt(i); continue; }
-                    bool anyLiquid = names.Any(n => n.StartsWith("*") && !n.EndsWith("skip"));
+                    // *teleport brushes are solid walls in Quake (only the trigger in front teleports) -> keep them in the world
+                    bool anyLiquid = names.Any(n => n.StartsWith("*") && !n.EndsWith("skip") && !n.StartsWith("*tele"));
                     if (anyLiquid && (isWorld || (ent.ClassName ?? "").StartsWith("func_group") || (ent.ClassName ?? "").StartsWith("func_detail"))) {
                         var key = names.First(n => n.StartsWith("*"));
                         var type = LiquidVolume.FromTextureName(key).ToString();

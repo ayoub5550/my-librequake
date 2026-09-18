@@ -19,6 +19,11 @@ namespace LQ {
         public string Target => Get("target");
 
         public static void ClearRegistry() { byTargetName.Clear(); AllEntities.Clear(); }
+        /// <summary>Drop destroyed entries (safe to call any time, unlike ClearRegistry).</summary>
+        public static void PruneRegistry() {
+            AllEntities.RemoveAll(e => e == null);
+            foreach (var l in byTargetName.Values) l.RemoveAll(e => e == null);
+        }
 
         void Awake() {
             AllEntities.Add(this);
@@ -38,6 +43,12 @@ namespace LQ {
         public static List<QEntity> FindByTargetName(string name) {
             if (string.IsNullOrEmpty(name)) return null;
             byTargetName.TryGetValue(name, out var l);
+            if (l != null) l.RemoveAll(e => e == null);
+            if (l == null || l.Count == 0) {
+                // fallback: scan the scene (covers entities whose Awake ran before the registry was ready)
+                foreach (var q in FindObjectsOfType<QEntity>(true))
+                    if (q.TargetName == name) { if (l == null) byTargetName[name] = l = new List<QEntity>(); if (!l.Contains(q)) l.Add(q); }
+            }
             return l;
         }
 

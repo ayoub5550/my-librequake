@@ -9,7 +9,15 @@ namespace LQ {
             ent = GetComponent<QEntity>();
             var rb = gameObject.GetComponent<Rigidbody>() ?? gameObject.AddComponent<Rigidbody>();
             rb.isKinematic = true; rb.useGravity = false;
-            foreach (var c in GetComponentsInChildren<Collider>()) { c.isTrigger = true; c.gameObject.layer = LayerMask.NameToLayer("Trigger"); }
+            var cols = GetComponentsInChildren<Collider>();
+            if (cols.Length == 0) { // no collider imported (e.g. all faces culled): use the brush bounds
+                var b = ent.GetBounds(); var box = gameObject.AddComponent<BoxCollider>();
+                box.center = transform.InverseTransformPoint(b.center); box.size = b.size; cols = new Collider[] { box };
+            }
+            foreach (var c in cols) {
+                if (c is MeshCollider mc && !mc.convex) mc.convex = true; // non-convex mesh colliders cannot be triggers
+                c.isTrigger = true; c.gameObject.layer = LayerMask.NameToLayer("Trigger");
+            }
             gameObject.layer = LayerMask.NameToLayer("Trigger");
         }
         protected static bool IsPlayer(Collider c) => c.GetComponentInParent<Player>() != null;
@@ -82,7 +90,7 @@ namespace LQ {
             var monster = other.GetComponentInParent<Monster>();
             if (player == null && (monster == null || ent.HasFlag(PLAYER_ONLY))) return;
             var dests = QEntity.FindByTargetName(ent.Target);
-            if (dests == null || dests.Count == 0) return;
+            if (dests == null || dests.Count == 0) { Debug.LogWarning($"trigger_teleport: no destination '{ent.Target}'"); return; }
             var dest = dests[Random.Range(0, dests.Count)];
             var pos = dest.Origin;
             if (player != null) {

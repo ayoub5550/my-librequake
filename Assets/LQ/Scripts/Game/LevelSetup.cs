@@ -11,7 +11,10 @@ namespace LQ {
         void Awake() {
             Current = this;
             info = GetComponent<LevelInfo>() ?? gameObject.AddComponent<LevelInfo>();
-            QEntity.ClearRegistry();
+            // NOTE: do NOT call QEntity.ClearRegistry() here. Awake order inside a scene is not guaranteed, so
+            // clearing here wiped entities that had already registered (teleport destinations, door targets...)
+            // -> random "trigger does nothing" bugs. QEntity.OnDestroy keeps the registry clean across scene loads.
+            QEntity.PruneRegistry();
         }
 
         void Start() {
