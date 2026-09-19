@@ -46,9 +46,10 @@ namespace LQ {
                 if (gm.currentMap != m || Player.Instance == null) { Debug.LogError($"[Bot] MAP {m} FAILED to load (scene={gm.currentMap}, player={(Player.Instance != null)})"); summary.Append($"{m}: LOAD FAILED\n"); continue; }
                 running = true;
                 Coroutine walker = script == "walk" ? StartCoroutine(WalkScript()) : null;
-                float t0 = Time.time, nextLog = 0; string firstDeath = null;
+                float t0 = Time.time, nextLog = 0, nextShot = Time.time + 1f; string firstDeath = null;
                 while (Time.time - t0 < seconds) {
                     if (Time.time >= nextLog) { LogState(Time.time - t0); nextLog = Time.time + 0.5f; }
+                    if (shotEvery > 0 && Time.time >= nextShot) { Screenshot(m, Time.time - t0); nextShot = Time.time + shotEvery; }
                     var p = Player.Instance;
                     if (p != null && p.IsDead) {
                         deaths++;
@@ -72,6 +73,25 @@ namespace LQ {
             Debug.Log("[Bot] SUMMARY\n" + summary);
             Debug.Log($"[Bot] done deaths={deaths} finalScene={gm.currentMap} minY={minY:F2}");
             Quit(0);
+        }
+
+        // LQ_BOT_SHOTS=<seconds> saves a PNG of the player camera every N seconds to LQ_BOT_SHOT_DIR (default Shots/).
+        // Needs a graphics device: run the Editor WITHOUT -nographics under Xvfb + llvmpipe (see TESTING.md §5).
+        static float shotEvery = float.TryParse(System.Environment.GetEnvironmentVariable("LQ_BOT_SHOTS") ?? "0", System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var se) ? se : 0f;
+        void Screenshot(string mapName, float t) {
+            var cam = Camera.main; if (cam == null) return;
+            try {
+                int w = 1280, h = 720;
+                var rt = RenderTexture.GetTemporary(w, h, 24);
+                var prev = cam.targetTexture; cam.targetTexture = rt; cam.Render(); cam.targetTexture = prev;
+                var old = RenderTexture.active; RenderTexture.active = rt;
+                var tex = new Texture2D(w, h, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, w, h), 0, 0); tex.Apply();
+                RenderTexture.active = old; RenderTexture.ReleaseTemporary(rt);
+                var dir = System.Environment.GetEnvironmentVariable("LQ_BOT_SHOT_DIR") ?? "Shots"; System.IO.Directory.CreateDirectory(dir);
+                var path = System.IO.Path.Combine(dir, $"{mapName}_{t:000.0}s.png");
+                System.IO.File.WriteAllBytes(path, tex.EncodeToPNG()); Destroy(tex);
+                Debug.Log("[Bot] SHOT " + path);
+            } catch (System.Exception e) { Debug.LogWarning("[Bot] screenshot failed: " + e.Message); shotEvery = 0; }
         }
 
         void LogState(float t) {

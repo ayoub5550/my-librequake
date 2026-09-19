@@ -220,6 +220,9 @@ namespace LQ.EditorTools {
 
         /// <summary>Make sure "Disable Unity Audio" is off in the shipped player (it is switched on only for headless import runs).</summary>
         static void EnsureAudioEnabled() {
+            // Sandboxes without any audio device (gVisor): FMOD cannot init even "nosound" and re-enabling audio here is fatal.
+            // Set LQ_KEEP_AUDIO_DISABLED=1 to build anyway and re-enable audio in the APK afterwards (tools/apk_enable_audio.py).
+            if (Environment.GetEnvironmentVariable("LQ_KEEP_AUDIO_DISABLED") == "1") { Debug.LogWarning("AudioManager: leaving Unity audio DISABLED (LQ_KEEP_AUDIO_DISABLED=1) — patch the APK afterwards"); return; }
             var objs = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/AudioManager.asset");
             if (objs == null || objs.Length == 0) return;
             var so = new SerializedObject(objs[0]);

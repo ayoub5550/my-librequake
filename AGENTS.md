@@ -132,8 +132,7 @@ MonoBehaviours are now one-class-per-file. Keep it that way (the compile check d
 catch this; only the build log warning `Script attached to '…' is missing` does).
 
 ### Local compile check (no Cloud Build minutes)
-The Unity Editor can compile the scripts headless (no player build — the shader compiler
-crashes in the sandbox): `Unity -batchmode -nographics -username … -password … -projectPath
+The Unity Editor can compile the scripts headless (player builds also work once §9 is set up): `Unity -batchmode -nographics -username … -password … -projectPath
 <project> -logFile log.txt -quit`. Success = exit code 0 and "Exiting batchmode successfully";
 `grep "error CS" log.txt` lists compile errors. If the log says "Invalid ILPostProcessor
 configuration … Scripts have compiler errors" with zero `CS` errors, stale
@@ -171,8 +170,8 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 - **Local**: Unity 2022.3.62f3 + Android Build Support (SDK/NDK/OpenJDK). Menu
   `LibreQuake` steps 1→2→3 → *Build Android APK*, or
   `Unity -batchmode -nographics -quit -projectPath . -buildTarget Android -executeMethod LQ.EditorTools.LQBuildPipeline.BuildAll`.
-  Headless Linux sandboxes without GPU/root may crash on shader import — Cloud Build is
-  the reliable path.
+  In the GPU-less gVisor sandbox this only works with the qemu shader-compiler wrapper and
+  `LQ_KEEP_AUDIO_DISABLED=1` — see §9 (validated 2026-09-19).
 
 ## 6. What to do next (priority order)
 
@@ -196,7 +195,7 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 4. Known code TODOs: `Monster.NoiseAt` should ignore monsters with `AmbushMarker`; the
    skill multiplier in `GameManager` is not applied yet; no save/load between sessions;
    music (`--music` staging option) is disabled by default to keep the APK small.
-5. Gameplay video (not possible from the sandbox — no GPU/KVM; record on a device instead): run a Linux/Windows player with `-lqdemo -lqdemo-map lq_e1m1 -lqdemo-frames DIR`
+5. Gameplay video: rendered screenshots now work in the sandbox (§9.2 / TESTING.md §2b); a full video still needs a device or a Linux player: run a Linux/Windows player with `-lqdemo -lqdemo-map lq_e1m1 -lqdemo-frames DIR`
    (`DemoRunner` dumps `f%05d.png` at 30 fps) and encode with ffmpeg.
 
 ## 7. Working conventions
@@ -210,3 +209,81 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 - Licences: code MIT (`LICENSE`); LibreQuake assets under their own licence
   (`LICENSE-LibreQuake-assets.txt`). Do not add proprietary Quake data.
 - Language: the repository owner communicates in Arabic; code, comments and this file are in English.
+
+## 9. Sandbox recipe — rendering AND local APK builds without GPU/root (2026-09-19)
+
+The dev sandbox (gVisor kernel `4.19.0-gvisor`, 17 cores, no GPU, no root) used to fail
+every player build and every rendered run with **"Shader compiler initialization error
+0x80000004"**. Root cause: `UnityShaderCompiler` crashes in `PESetupFS()` →
+`D3DCompilerWrapper::Initialize` because gVisor does not honour `arch_prctl(ARCH_SET_FS/GS)`
+the way the Windows-PE loader inside the compiler expects. Same class of bug the `my-gpu`
+repo hit with Wine. Fix = run only that one binary under **qemu user-mode (TCG)**; the Editor
+itself runs natively.
+
+### 9.1 One-time setup (≈2 min, no root)
+
+```bash
+# 1. qemu-user-static without root: download the Debian package and unpack it
+mkdir -p /work/qemu/sysroot && cd /work/qemu
+apt-get download qemu-user-static            # Debian 7.2.x is fine
+dpkg -x qemu-user-static_*.deb sysroot       # → sysroot/usr/bin/qemu-x86_64-static
+
+# 2. wrap the shader compiler (Editor = /work/unity/editor)
+cd /work/unity/editor/Editor/Data/Tools
+mv UnityShaderCompiler UnityShaderCompiler.real
+cat > UnityShaderCompiler <<'SH'
+#!/bin/sh
+# gVisor sandbox: native compiler crashes in PESetupFS (arch_prctl FS/GS). Run it under qemu user-mode.
+exec /work/qemu/sysroot/usr/bin/qemu-x86_64-static "$(dirname "$0")/UnityShaderCompiler.real" "$@"
+SH
+chmod +x UnityShaderCompiler
+
+# 3. Editor launcher used everywhere below
+cat > /work/unity/run_unity.sh <<'SH'
+#!/bin/sh
+export LD_LIBRARY_PATH=/work/unity/libs/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+export HOME=${HOME:-/work/unity/home}
+exec /work/unity/editor/Editor/Unity "$@"
+SH
+chmod +x /work/unity/run_unity.sh
+```
+
+Verify: `xvfb-run -a -s "-screen 0 1280x720x24" ./run_unity.sh -batchmode -force-glcore
+-projectPath /work/lqunity -quit -logFile log_gfx.txt` → log shows `OpenGL 4.5 … llvmpipe`,
+no `Shader compiler initialization error`, exit 0. Shader compilation is ~5–10× slower under
+TCG but the whole project compiles.
+
+### 9.2 Rendered playtest (screenshots)
+
+See TESTING.md §2b. Needs Xvfb + Mesa llvmpipe (`swrast_dri.so`) and
+`LP_NUM_THREADS=<cores>` (llvmpipe hangs at 720p without it — credit: `my-gpu/docs/GAMING.md`).
+Use `-force-glcore`, never `-nographics`. `PlaytestBot` writes PNGs when `LQ_BOT_SHOTS` is set.
+
+### 9.3 Local Android APK build
+
+Android SDK/NDK/OpenJDK ship inside the Editor
+(`Editor/Data/PlaybackEngines/AndroidPlayer/`, 5.2 GB) — nothing else to install.
+
+```bash
+cd /work/unity && rm -f build.exit /work/lqunity/Temp/UnityLockfile
+LQ_KEEP_AUDIO_DISABLED=1 ./run_unity.sh -batchmode -nographics -username "$U" -password "$P" \
+  -projectPath /work/lqunity -buildTarget Android \
+  -executeMethod LQ.EditorTools.LQBuildPipeline.BuildAndroid -quit -logFile /work/unity/log_build.txt
+grep "BUILD RESULT\|error CS\|Fatal" /work/unity/log_build.txt   # APK → /work/lqunity/Builds/LibreQuake.apk
+```
+
+* **`LQ_KEEP_AUDIO_DISABLED=1` is required in the sandbox.** There is no audio device at all
+  (FMOD "Unable to initialize any audio device (even nosound)" — an ALSA `null` PCM in
+  `~/.asoundrc` does not help), so `EnsureAudioEnabled()` would make the Editor abort.
+  The flag leaves `m_DisableAudio: 1` and the APK is built silent. Re-enable audio afterwards
+  with `tools/apk_enable_audio.py` (§9.4). Cloud Build does not need the flag.
+* IL2CPP compiles ~1000 C++ objects per ABI; the whole build takes 30–60 min on 17 cores.
+* Run one Unity instance at a time; stale `Unity.ILPP.Runner`/`UnityShaderCompiler` processes
+  → kill them and delete `/tmp/ilpp.sock-*` before retrying.
+
+### 9.4 Re-enabling audio in a locally built APK
+
+`tools/apk_enable_audio.py in.apk out.apk` patches `assets/bin/Data/globalgamemanagers`
+(AudioManager `m_DisableAudio` → 0) with UnityPy, re-zips, then `zipalign` + `apksigner`
+(build-tools from the bundled SDK, debug keystore generated with the bundled `keytool`).
+If the build was made on Cloud Build the APK already has audio — skip this.

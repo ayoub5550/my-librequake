@@ -6,6 +6,7 @@ Three layers, cheapest first. Run them in this order before every push / Cloud B
 |---|---|---|---|
 | 1. Compile check | Unity Editor, headless | ~1 min | C# errors, missing scripts |
 | 2. Headless playtest bot | Unity Editor, headless (no GPU) | ~1.5 min per map | falls, instant deaths, missing colliders, broken lifts/doors/triggers, NullReferences at spawn |
+| 2b. Rendered playtest (Xvfb+llvmpipe) | Unity Editor + Xvfb + qemu wrapper (AGENTS.md §9) | ~4 min per map | missing textures, fullbright, invisible models, texture scale |
 | 3. Device test | Android phone + APK from Cloud Build / GitHub Release | 30–40 min build | rendering, touch controls, performance |
 
 All commands assume Unity 2022.3.62f3 at `$UNITY` and the project checked out at `$PROJ`.
@@ -139,6 +140,32 @@ Extending the bot: `Assets/LQ/Scripts/Game/PlaytestBot.cs` — add a script name
 `Start()` (e.g. `shoot`, `usekeys`) and a coroutine that writes `GameInput.botMove` /
 `GameInput.botLook` / `GameInput.touchFire` / `GameInput.touchJump`. Never write
 `GameInput.touchMove` from a bot: `TouchControls` zeroes it every frame when hidden.
+
+## 2b. Rendered playtest under Xvfb + llvmpipe (screenshots, no GPU)
+
+The headless bot (§2) proves physics/triggers but sees nothing. A rendered run gives PNG
+screenshots from the player camera — enough to spot missing textures, fullbright rooms,
+invisible monsters, wrong texture scale. It works in the GPU-less gVisor sandbox
+(17 cores, no root) thanks to two tricks borrowed from the `my-gpu` repo; see
+AGENTS.md §9 for the one-time setup (`qemu` wrapper for `UnityShaderCompiler`).
+
+```bash
+cd /work/unity && rm -f bot.exit /work/lqunity/Temp/UnityLockfile
+LP_NUM_THREADS=17 LQ_BOT=1 LQ_BOT_MAPS=lq_e1m1 LQ_BOT_SECONDS=20 LQ_BOT_SCRIPT=walk \
+LQ_BOT_SHOTS=3 LQ_BOT_SHOT_DIR=/work/unity/shots \
+xvfb-run -a -s "-screen 0 1280x720x24" ./run_unity.sh -batchmode -force-glcore \
+  -username "$U" -password "$P" -projectPath /work/lqunity \
+  -executeMethod LQ.EditorTools.LQBuildPipeline.BotPlay -logFile /work/unity/log_botN.txt
+grep "\[Bot\] SHOT" /work/unity/log_botN.txt     # one line per PNG written
+```
+
+* `-force-glcore` (NOT `-nographics`) so a real GL 4.5 llvmpipe device is created.
+* `LP_NUM_THREADS=<cores>` is mandatory — llvmpipe hangs at 720p without it.
+* `LQ_BOT_SHOTS=<sec>` = screenshot interval, `LQ_BOT_SHOT_DIR` = output dir;
+  files are `{map}_{t:000.0}s.png` (1280×720, camera only — the UI overlay is not captured).
+* Run ONE Unity instance at a time. Expect ~3–4 min for a 20 s playtest of one map.
+* Known visual findings so far (2026-09-19, e1m1): textures + shotgun render, but rooms are
+  fullbright (no lightmaps yet) and some faces show an oversized texture scale.
 
 ## 3. Device test
 
