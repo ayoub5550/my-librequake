@@ -101,6 +101,12 @@ Bugs found with the bot so far (all fixed, see git log):
   slime `trigger_hurt` → instant death right after entering Episode 3. Riders are now kept over
   the platform while a lift moves vertically (guard rail in `Mover.CarryPlayer`).
 
+Known limitation in GPU-less sandboxes: importing *some* maps for the first time inside `BotPlay`
+can crash the Editor in `Material.GetTexture` (seen with `start`; `lq_e1m1`/`lq_e3m1` imported fine).
+Import those maps once on a normal machine (menu `LibreQuake → Import maps` or
+`-executeMethod LQ.EditorTools.LQBuildPipeline.ImportSelected` with `LQ_MAPS=start`) and commit
+nothing — scenes are generated, the bot only needs them to exist locally.
+
 Extending the bot: `Assets/LQ/Scripts/Game/PlaytestBot.cs` — add a script name in
 `Start()` (e.g. `shoot`, `usekeys`) and a coroutine that writes `GameInput.botMove` /
 `GameInput.botLook` / `GameInput.touchFire` / `GameInput.touchJump`. Never write
