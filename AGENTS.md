@@ -277,7 +277,20 @@ grep "BUILD RESULT\|error CS\|Fatal" /work/unity/log_build.txt   # APK → /work
   `~/.asoundrc` does not help), so `EnsureAudioEnabled()` would make the Editor abort.
   The flag leaves `m_DisableAudio: 1` and the APK is built silent. Re-enable audio afterwards
   with `tools/apk_enable_audio.py` (§9.4). Cloud Build does not need the flag.
-* IL2CPP compiles ~1000 C++ objects per ABI; the whole build takes 30–60 min on 17 cores.
+* **FSBTool wrapper (sounds).** Audio clips are encoded by `Editor/Data/Tools/FSBTool/FSBTool`.
+  In the sandbox it writes a complete FSB5 file and *then* fails FMOD init ("Internal error
+  from FMOD sub-system", exit -2) → Unity drops every clip and the APK has no `.resource`
+  files (Build local #2 had 0 of 228 sounds). Fix: rename the binary to `FSBTool.real` and
+  install a shell wrapper that returns 0 when the `-o` file exists and starts with `FSB5`
+  (the wrapper text is in TESTING.md §2c). Check a build with
+  `unzip -l LibreQuake.apk | grep -c '\.resource$'` → must be 228.
+* IL2CPP compiles ~1000 C++ objects per ABI; a full build took **10 min 40 s** on 17 cores
+  (Build local #2, 2026-09-19).
+* **Material repair.** Materials generated while the shaders could not compile point at the
+  built-in `Unlit/Texture` (fileID 10752) → fullbright levels, static water/sky. This is what
+  shipped in v0.1.0–v0.1.4. `LoadMaterials()` now repairs them automatically whenever
+  `LQ/World` exists (also from `BuildAndroid`); menu *LibreQuake → Repair materials* does it by hand.
+  Verify: `grep -l "fileID: 10752" Assets/LQ/Materials/*.mat | wc -l` → 0.
 * Run one Unity instance at a time; stale `Unity.ILPP.Runner`/`UnityShaderCompiler` processes
   → kill them and delete `/tmp/ilpp.sock-*` before retrying.
 

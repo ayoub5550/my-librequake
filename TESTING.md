@@ -167,6 +167,25 @@ grep "\[Bot\] SHOT" /work/unity/log_botN.txt     # one line per PNG written
 * Known visual findings so far (2026-09-19, e1m1): textures + shotgun render, but rooms are
   fullbright (no lightmaps yet) and some faces show an oversized texture scale.
 
+## 2c. Sandbox tool wrappers (why builds worked only after these)
+
+Two Unity helper binaries misbehave under gVisor; both are fixed with shell wrappers next to the
+binary (rename original to `*.real`). Details and rationale: AGENTS.md §9.
+
+```sh
+# Editor/Data/Tools/FSBTool/FSBTool  (chmod +x)
+#!/bin/sh
+out=""; prev=""
+for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
+msg=$("$(dirname "$0")/FSBTool.real" "$@" 2>&1); rc=$?
+if [ $rc -ne 0 ] && [ -n "$out" ] && [ -s "$out" ] && [ "$(head -c 4 "$out" 2>/dev/null)" = "FSB5" ]; then
+  echo "FSBTool: ignored FMOD init error (sandbox), output ok: $out" >&2; exit 0
+fi
+printf '%s\n' "$msg"; exit $rc
+```
+
+Verify a build: `grep -c "FSBTool ERROR" log.txt` → 0 and the APK contains 228 `.resource` files.
+
 ## 3. Device test
 
 1. Build on Unity Cloud Build (AGENTS.md §4) or download the latest GitHub Release APK.

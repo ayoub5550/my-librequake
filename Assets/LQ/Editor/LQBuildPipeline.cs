@@ -88,6 +88,7 @@ namespace LQ.EditorTools {
         [MenuItem("LibreQuake/4. Build Android APK")]
         public static void BuildAndroid() {
             ConfigurePlayerSettings();
+            LoadMaterials(); // repairs materials still on the Unlit/Texture fallback (see LoadMaterials)
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             Directory.CreateDirectory("Builds");
             var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = "Builds/LibreQuake.apk", target = BuildTarget.Android, options = BuildOptions.None };
@@ -321,14 +322,28 @@ namespace LQ.EditorTools {
         static void LoadMaterials() {
             materialsByQuakeName = new Dictionary<string, Material>();
             if (!AssetDatabase.IsValidFolder(MatDir)) return;
+            var world = Shader.Find("LQ/World");
+            int wrongShader = 0;
             foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { MatDir })) {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
                 if (mat == null) continue;
                 var quake = mat.name.Replace("star_", "*").Replace("plus_", "+");
                 materialsByQuakeName[quake] = mat;
+                if (mat.shader == null || !mat.shader.name.StartsWith("LQ/")) wrongShader++;
             }
-            if (materialsByQuakeName.Count == 0) { BuildMaterials(); }
+            // Materials created while the LQ shaders could not compile (sandbox before the qemu
+            // shader-compiler fix, see AGENTS.md §9) point at the built-in Unlit/Texture fallback:
+            // no vertex lighting, no liquid warp, no sky scroll. Repair them whenever the real shaders exist.
+            if (!repairingMaterials && (materialsByQuakeName.Count == 0 || (wrongShader > 0 && world != null))) {
+                repairingMaterials = true;
+                Debug.Log($"[LQ] rebuilding materials ({wrongShader} on fallback shader, {materialsByQuakeName.Count} total)");
+                try { BuildMaterials(); } finally { repairingMaterials = false; }
+            }
         }
+        static bool repairingMaterials;
+
+        [MenuItem("LibreQuake/Repair materials (shader refs)")]
+        public static void RepairMaterials() { ImportTextures(); BuildMaterials(); AssetDatabase.SaveAssets(); }
 
         static Material FindMaterial(string quakeTex) {
             var key = quakeTex.ToLowerInvariant();
