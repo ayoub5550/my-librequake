@@ -27,7 +27,11 @@ Shader "LQ/World" {
             fixed4 frag (v2f i) : SV_Target {
                 fixed4 tex = tex2D(_MainTex, i.uv);
                 // baked vertex light is stored as 0..1 = 0..2x brightness
-                fixed3 light = lerp(i.color.rgb * _Brightness, fixed3(1,1,1), _Fullbright);
+                // lift the darkest areas a little (phone screens in daylight) and soften the curve like Quake's
+                // overbright lightmaps; keeps fully lit areas unchanged.
+                fixed3 baked = saturate(i.color.rgb * _Brightness);
+                baked = pow(baked, 0.8) * 0.94 + 0.06;
+                fixed3 light = lerp(baked, fixed3(1,1,1), _Fullbright);
                 fixed4 col = fixed4(tex.rgb * light, 1);
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
