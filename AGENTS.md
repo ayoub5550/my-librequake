@@ -52,6 +52,11 @@ Status (2026-09-19):
     `Item` and `MonsterDefs` shows no unhandled gameplay classnames — only `func_group`
     (editor grouping), `path_corner` (consumed by `func_train`) and `viewthing` remain.
     Awaiting device test.
+  - Build #7 (commit `b7df71f`, 29 min, 2026-09-19): Release `v0.1.4` (148 MB). Contents: all
+    headless-playtest fixes (`GetOrAdd`, `CarryPlayer`, lift guard rail, Quake-accurate lava
+    damage, particle reset, multi-map `PlaytestBot`). Build log verified: all six `LQ/*` shaders
+    serialized, 228 .wav sounds. **Free Cloud Build minutes are now essentially exhausted
+    (~190/200 used) until the monthly reset.** Awaiting device test.
 - **Headless playtesting works** (2026-09-19): `PlaytestBot` + `LQBuildPipeline.BotPlay` run the
   real game in Editor play mode without a GPU and log the player's position/health/deaths.
   Full instructions in **`TESTING.md`** — run the smoke set before every push. First findings,
@@ -171,10 +176,10 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-0. **Build #7** with the playtest fixes (`GetOrAdd`, `CarryPlayer`, lift guard rail, lava damage,
-   particle fix, multi-map bot) once Cloud Build minutes are available again (≈30 min left on
-   2026-09-19 — a full build needs ~33; the free tier resets monthly). The full 40-map bot sweep
-   already passed (TESTING.md §2); re-run the smoke set before every push.
+0. **Device-test Build #7 / v0.1.4** and collect concrete bug reports (map name + what happened).
+   No Cloud Build minutes remain in September 2026 (free tier resets monthly) — batch all fixes
+   into one Build #8. The full 40-map bot sweep already passed (TESTING.md §2); re-run the smoke
+   set before every push.
 0b. **Placeholder maps**: check newer LibreQuake releases (https://github.com/lavenderdotpet/LibreQuake)
    for finished versions of the 9 stub maps listed in §1 and re-import them (`MapSources/`).
 1. **Verify build #6 (v0.1.3) on a device**: EPISODE gates in `start` open only with runes,
@@ -198,7 +203,7 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 - Git: the sandbox filesystem is slow — run long git ops in the background and never two at
   once (`index.lock`). Pushing needs the authenticated GitHub helper, plain `git push` has no credentials.
-- Cloud Build minutes are scarce (free tier 200/month, ≈30 left after build #6 — likely no more builds until the monthly reset): batch several
+- Cloud Build minutes are scarce (free tier 200/month, ≈190 used after build #7 — no more builds until the monthly reset): batch several
   fixes per build.
 - Commit source only; never commit `Library/`, `Builds/`, `Assets/LQ/Generated`, `Assets/LQ/Scenes`, APKs.
 - Keep `README.md` (Arabic + English) in sync with build instructions.
