@@ -99,6 +99,8 @@ namespace LQ {
             if (start == null && playerStarts.Count > 0) start = playerStarts[0];
             Vector3 pos = start != null ? start.Origin - Vector3.up * (24f / 32f) : Vector3.zero;
             float yaw = start != null ? start.Yaw : 0;
+            // never spawn a corpse: a level load while dead (bot map hopping, future save/load) must give a live player
+            if (GameManager.Instance != null && GameManager.Instance.stats.health <= 0) GameManager.Instance.stats.health = 100;
             var go = new GameObject("Player");
             go.layer = LayerMask.NameToLayer("Player");
             go.transform.position = pos + Vector3.up * 0.05f;

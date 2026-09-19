@@ -175,7 +175,14 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-0. **Device-test v0.1.5** (first local sandbox build, lighting restored) and collect concrete bug
+0. **Device-test v0.1.6** — it fixes the two bugs the owner reported most: (a) every mover with a
+   move sound (`sounds` 1–4 doors, lifts, trains) teleported to its bounds centre the moment it
+   started moving, because `SoundBank.Loop` attached the AudioSource to the mover itself and the
+   code then set `moveSrc.transform.position` (e3m1 start lift slid 44 m → player fell into the
+   pit); (b) `trigger_teleport` did the same with its hum → portals stopped teleporting. Both were
+   invisible to the headless bot because Editor audio was disabled — **now that audio works in the
+   sandbox (§9.3) every bot run exercises the audio code paths too; keep it that way.**
+0a. **Device-test v0.1.5** (first local sandbox build, lighting restored) and collect concrete bug
    reports (map name + what happened). Builds are now local (§9, ~2 min incremental) — no need
    to wait for Cloud Build minutes. The full 40-map bot sweep already passed (TESTING.md §2); re-run the smoke
    set before every push.

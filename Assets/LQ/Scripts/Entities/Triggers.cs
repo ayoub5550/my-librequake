@@ -75,8 +75,14 @@ namespace LQ {
         protected override void Awake() {
             base.Awake();
             if (!string.IsNullOrEmpty(ent.TargetName)) armed = false;
-            if (!ent.HasFlag(SILENT)) hum = SoundBank.Loop(gameObject, "ambience/hum1.wav", 0.5f, 12f);
-            if (hum) hum.transform.position = ent.GetBounds().center;
+            if (!ent.HasFlag(SILENT)) {
+                // child object: putting the AudioSource on the trigger itself and moving it shifted the whole
+                // trigger volume to its bounds centre (portals stopped teleporting once audio was on).
+                var sgo = new GameObject("hum"); sgo.transform.SetParent(transform, false);
+                sgo.transform.position = ent.GetBounds().center;
+                hum = SoundBank.Loop(sgo, "ambience/hum1.wav", 0.5f, 12f);
+                if (hum == null) Destroy(sgo);
+            }
         }
 
         public void Activate(GameObject activator) { armed = !armed; }

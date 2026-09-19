@@ -27,9 +27,15 @@ namespace LQ {
         protected void MoveTo(Vector3 dest, System.Action arrive) {
             targetPos = dest; moving = true; onArrive = arrive;
             if (!string.IsNullOrEmpty(moveSound)) {
-                if (moveSrc == null) moveSrc = SoundBank.Loop(gameObject, moveSound, 0.8f);
-                else { moveSrc.clip = SoundBank.Get(moveSound); moveSrc.Play(); }
-                if (moveSrc) moveSrc.transform.position = localBounds.center;
+                // The looping sound lives on a CHILD object. Attaching it to the mover itself and then setting
+                // `moveSrc.transform.position` teleported the whole door/lift to its bounds centre (e3m1 start
+                // lift slid 44 m sideways, player fell to death). Bots never saw it: Editor audio was disabled.
+                if (moveSrc == null) {
+                    var sgo = new GameObject("move_sound"); sgo.transform.SetParent(transform, false);
+                    moveSrc = SoundBank.Loop(sgo, moveSound, 0.8f);
+                    if (moveSrc == null) Destroy(sgo);
+                } else { moveSrc.clip = SoundBank.Get(moveSound); moveSrc.Play(); }
+                if (moveSrc) moveSrc.transform.position = WorldBounds().center;
             }
         }
 
@@ -40,6 +46,9 @@ namespace LQ {
             var delta = next - before;
             if (!CanMove(delta)) { OnBlocked(); return; }
             transform.position = next;
+#if UNITY_EDITOR
+            if (PlaytestBot.Verbose && !string.IsNullOrEmpty(ent.TargetName)) Debug.Log($"[Move] {name} t={Time.time:F2} dt={Time.deltaTime:F3} pos={next} target={targetPos} speed={speed:F2}");
+#endif
             CarryPlayer(delta);
             if ((next - targetPos).sqrMagnitude < 0.00001f) {
                 moving = false;
