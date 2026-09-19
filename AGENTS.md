@@ -175,7 +175,9 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-0. **Device-test v0.1.6** — it fixes the two bugs the owner reported most: (a) every mover with a
+0. **Device-test v0.1.7** (= v0.1.6 fixes + brighter dark areas). Rendered sweep of 14 maps on
+   2026-09-19 (start, e1m1-3, e2m2-4, e3m1-3, e4m1,3,4): 0 deaths after the mover fix; visuals OK.
+0z. **v0.1.6 notes** — it fixes the two bugs the owner reported most: (a) every mover with a
    move sound (`sounds` 1–4 doors, lifts, trains) teleported to its bounds centre the moment it
    started moving, because `SoundBank.Loop` attached the AudioSource to the mover itself and the
    code then set `moveSrc.transform.position` (e3m1 start lift slid 44 m → player fell into the
