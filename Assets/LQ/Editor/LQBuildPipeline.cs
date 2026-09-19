@@ -89,6 +89,7 @@ namespace LQ.EditorTools {
         public static void BuildAndroid() {
             ConfigurePlayerSettings();
             LoadMaterials(); // repairs materials still on the Unlit/Texture fallback (see LoadMaterials)
+            if (Environment.GetEnvironmentVariable("LQ_REIMPORT_SOUNDS") == "1") ReimportSounds();
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             Directory.CreateDirectory("Builds");
             var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = "Builds/LibreQuake.apk", target = BuildTarget.Android, options = BuildOptions.None };
@@ -341,6 +342,20 @@ namespace LQ.EditorTools {
             }
         }
         static bool repairingMaterials;
+
+        /// <summary>Force re-import of every AudioClip. Needed once after installing the sandbox FSBTool
+        /// wrapper (AGENTS.md §9.3): clips whose import failed earlier stay cached as failed and the APK
+        /// ships without any .resource file. Env LQ_REIMPORT_SOUNDS=1 runs this inside BuildAndroid.</summary>
+        [MenuItem("LibreQuake/Reimport sounds (force)")]
+        public static void ReimportSounds() {
+            AssetDatabase.ImportAsset("Assets/LQ/Resources/sound", ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+            int ok = 0, bad = 0;
+            foreach (var g in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/LQ/Resources/sound" })) {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(AssetDatabase.GUIDToAssetPath(g));
+                if (clip != null && clip.length > 0) ok++; else bad++;
+            }
+            Debug.Log($"[LQ] ReimportSounds: {ok} clips ok, {bad} failed");
+        }
 
         [MenuItem("LibreQuake/Repair materials (shader refs)")]
         public static void RepairMaterials() { ImportTextures(); BuildMaterials(); AssetDatabase.SaveAssets(); }

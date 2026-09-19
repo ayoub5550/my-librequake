@@ -175,9 +175,9 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-0. **Device-test Build #7 / v0.1.4** and collect concrete bug reports (map name + what happened).
-   No Cloud Build minutes remain in September 2026 (free tier resets monthly) — batch all fixes
-   into one Build #8. The full 40-map bot sweep already passed (TESTING.md §2); re-run the smoke
+0. **Device-test v0.1.5** (first local sandbox build, lighting restored) and collect concrete bug
+   reports (map name + what happened). Builds are now local (§9, ~2 min incremental) — no need
+   to wait for Cloud Build minutes. The full 40-map bot sweep already passed (TESTING.md §2); re-run the smoke
    set before every push.
 0b. **Placeholder maps**: check newer LibreQuake releases (https://github.com/lavenderdotpet/LibreQuake)
    for finished versions of the 9 stub maps listed in §1 and re-import them (`MapSources/`).
@@ -222,6 +222,9 @@ itself runs natively.
 
 ### 9.1 One-time setup (≈2 min, no root)
 
+Ready-made copies of every file below live in `tools/sandbox/` (`schedfix.c`, `run_unity.sh`,
+`UnityShaderCompiler.wrapper.sh`).
+
 ```bash
 # 1. qemu-user-static without root: download the Debian package and unpack it
 mkdir -p /work/qemu/sysroot && cd /work/qemu
@@ -243,8 +246,11 @@ cat > /work/unity/run_unity.sh <<'SH'
 #!/bin/sh
 export LD_LIBRARY_PATH=/work/unity/libs/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 export HOME=${HOME:-/work/unity/home}
+export LD_PRELOAD=/work/unity/shim/libschedfix.so${LD_PRELOAD:+:$LD_PRELOAD}   # FMOD fix, see §9.3
 exec /work/unity/editor/Editor/Unity "$@"
 SH
+# 4. FMOD shim (source also in tools/sandbox/schedfix.c)
+mkdir -p /work/unity/shim && cp tools/sandbox/schedfix.c /work/unity/shim/ && gcc -shared -fPIC -O2 -o /work/unity/shim/libschedfix.so /work/unity/shim/schedfix.c
 chmod +x /work/unity/run_unity.sh
 ```
 
@@ -266,24 +272,25 @@ Android SDK/NDK/OpenJDK ship inside the Editor
 
 ```bash
 cd /work/unity && rm -f build.exit /work/lqunity/Temp/UnityLockfile
-LQ_KEEP_AUDIO_DISABLED=1 ./run_unity.sh -batchmode -nographics -username "$U" -password "$P" \
+LQ_REIMPORT_SOUNDS=1 ./run_unity.sh -batchmode -nographics   # LQ_REIMPORT_SOUNDS only needed once -username "$U" -password "$P" \
   -projectPath /work/lqunity -buildTarget Android \
   -executeMethod LQ.EditorTools.LQBuildPipeline.BuildAndroid -quit -logFile /work/unity/log_build.txt
 grep "BUILD RESULT\|error CS\|Fatal" /work/unity/log_build.txt   # APK → /work/lqunity/Builds/LibreQuake.apk
 ```
 
-* **`LQ_KEEP_AUDIO_DISABLED=1` is required in the sandbox.** There is no audio device at all
-  (FMOD "Unable to initialize any audio device (even nosound)" — an ALSA `null` PCM in
-  `~/.asoundrc` does not help), so `EnsureAudioEnabled()` would make the Editor abort.
-  The flag leaves `m_DisableAudio: 1` and the APK is built silent. Re-enable audio afterwards
-  with `tools/apk_enable_audio.py` (§9.4). Cloud Build does not need the flag.
-* **FSBTool wrapper (sounds).** Audio clips are encoded by `Editor/Data/Tools/FSBTool/FSBTool`.
-  In the sandbox it writes a complete FSB5 file and *then* fails FMOD init ("Internal error
-  from FMOD sub-system", exit -2) → Unity drops every clip and the APK has no `.resource`
-  files (Build local #2 had 0 of 228 sounds). Fix: rename the binary to `FSBTool.real` and
-  install a shell wrapper that returns 0 when the `-o` file exists and starts with `FSB5`
-  (the wrapper text is in TESTING.md §2c). Check a build with
-  `unzip -l LibreQuake.apk | grep -c '\.resource$'` → must be 228.
+* `LQ_KEEP_AUDIO_DISABLED=1` is only a fallback for sandboxes *without* the `libschedfix.so`
+  preload (see below): it leaves `m_DisableAudio: 1` so `EnsureAudioEnabled()` cannot abort the
+  Editor, and the APK is then made audible with `tools/apk_enable_audio.py` (§9.4).
+* **Audio / FMOD (`libschedfix.so`).** Root cause found 2026-09-19: gVisor returns 0 for
+  `sched_get_priority_min/max(SCHED_FIFO)`, so glibc's `pthread_attr_setschedparam()` fails with
+  EINVAL and FMOD aborts — Editor: "Unable to initialize any audio device (even nosound)",
+  FSBTool: "Internal error from FMOD sub-system" → 0 sounds in the APK. Fix: a 10-line
+  `LD_PRELOAD` shim that turns realtime-priority requests into no-ops (source in TESTING.md §2c,
+  built with `gcc -shared -fPIC -O2 -o libschedfix.so schedfix.c`). `run_unity.sh` exports
+  `LD_PRELOAD=/work/unity/shim/libschedfix.so`. With it the Editor imports/plays audio normally,
+  so `LQ_KEEP_AUDIO_DISABLED` and `tools/apk_enable_audio.py` are no longer needed (kept as fallback).
+  After installing the shim run once with `LQ_REIMPORT_SOUNDS=1` (clips cached as "failed" are
+  not re-imported otherwise). Check: `unzip -l LibreQuake.apk | grep -c '\.resource$'` → 228.
 * IL2CPP compiles ~1000 C++ objects per ABI; a full build took **10 min 40 s** on 17 cores
   (Build local #2, 2026-09-19).
 * **Material repair.** Materials generated while the shaders could not compile point at the
@@ -294,7 +301,7 @@ grep "BUILD RESULT\|error CS\|Fatal" /work/unity/log_build.txt   # APK → /work
 * Run one Unity instance at a time; stale `Unity.ILPP.Runner`/`UnityShaderCompiler` processes
   → kill them and delete `/tmp/ilpp.sock-*` before retrying.
 
-### 9.4 Re-enabling audio in a locally built APK
+### 9.4 Re-enabling audio in a locally built APK (fallback only)
 
 `tools/apk_enable_audio.py in.apk out.apk` patches `assets/bin/Data/globalgamemanagers`
 (AudioManager `m_DisableAudio` → 0) with UnityPy, re-zips, then `zipalign` + `apksigner`

@@ -167,24 +167,28 @@ grep "\[Bot\] SHOT" /work/unity/log_botN.txt     # one line per PNG written
 * Known visual findings so far (2026-09-19, e1m1): textures + shotgun render, but rooms are
   fullbright (no lightmaps yet) and some faces show an oversized texture scale.
 
-## 2c. Sandbox tool wrappers (why builds worked only after these)
+## 2c. Sandbox FMOD shim (why audio import/playback works)
 
-Two Unity helper binaries misbehave under gVisor; both are fixed with shell wrappers next to the
-binary (rename original to `*.real`). Details and rationale: AGENTS.md §9.
+gVisor reports `sched_get_priority_min/max(SCHED_FIFO) == 0`; glibc then rejects FMOD's
+realtime thread priorities and FMOD refuses to start (Editor: "Unable to initialize any audio
+device (even nosound)"; FSBTool: "Internal error from FMOD sub-system" → no sounds in the APK).
+`run_unity.sh` preloads this shim (build: `gcc -shared -fPIC -O2 -o libschedfix.so schedfix.c`):
 
-```sh
-# Editor/Data/Tools/FSBTool/FSBTool  (chmod +x)
-#!/bin/sh
-out=""; prev=""
-for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
-msg=$("$(dirname "$0")/FSBTool.real" "$@" 2>&1); rc=$?
-if [ $rc -ne 0 ] && [ -n "$out" ] && [ -s "$out" ] && [ "$(head -c 4 "$out" 2>/dev/null)" = "FSB5" ]; then
-  echo "FSBTool: ignored FMOD init error (sandbox), output ok: $out" >&2; exit 0
-fi
-printf '%s\n' "$msg"; exit $rc
+```c
+// /work/unity/shim/schedfix.c
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <sched.h>
+int pthread_attr_setschedparam(pthread_attr_t *a, const struct sched_param *p) { return 0; }
+int pthread_attr_setschedpolicy(pthread_attr_t *a, int policy) { return 0; }
+int pthread_setschedparam(pthread_t t, int policy, const struct sched_param *p) { return 0; }
+int sched_setscheduler(pid_t pid, int policy, const struct sched_param *p) { return 0; }
+int sched_get_priority_max(int policy) { return (policy == SCHED_FIFO || policy == SCHED_RR) ? 99 : 0; }
+int sched_get_priority_min(int policy) { return (policy == SCHED_FIFO || policy == SCHED_RR) ? 1 : 0; }
 ```
 
-Verify a build: `grep -c "FSBTool ERROR" log.txt` → 0 and the APK contains 228 `.resource` files.
+Verify: `grep -c "FSBTool ERROR\|Cannot create resource" log.txt` → 0, `[LQ] ReimportSounds: 228 clips ok`,
+and the APK contains 228 `.resource` files. Bot runs now also play real AudioClips.
 
 ## 3. Device test
 
