@@ -219,6 +219,67 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
   (`LICENSE-LibreQuake-assets.txt`). Do not add proprietary Quake data.
 - Language: the repository owner communicates in Arabic; code, comments and this file are in English.
 
+## 8. Status at hand-over (2026-09-19 15:10, work paused by the owner)
+
+Latest release: **v0.1.7** — https://github.com/ayoub5550/my-librequake/releases/tag/v0.1.7
+(v0.1.5 lighting/material repair + v0.1.6 mover/portal sound-teleport fix + dead-spawn guard +
+v0.1.7 brighter dark areas). Everything is on `main`; no uncommitted work except the local
+Scopa patch described in TESTING.md.
+
+Last 41-map headless sweep (audio ON, `walk` script, 30 s/map) was interrupted after 22 maps:
+0 exceptions / MissingComponent / NullReference; the `walk` bot died on `lq_e3m1` (walks
+straight off the start lift — the `idle` script rides it fine) and `lq_e1m7` (walks into a
+liquid trigger). Both are bot behaviour, not proven game bugs — check them with §8.1 first.
+
+The owner's remaining complaint is generic ("many errors, missing resources, puzzles") and he
+wants the game **played end-to-end automatically like a YouTube playthrough** so every bug is
+caught before a release. That is the next big piece of work and is specified in §8.1.
+
+### 8.1 Method: playthrough bot (specified, NOT implemented)
+
+Goal: `PlaytestBot` finishes each map (touches `trigger_changelevel`) without human input,
+solving the level logic like a human would, and produces a per-map report. Build it in this
+order, proving each step on `lq_e1m1` before moving on:
+
+1. **Navigation.** At import (`LQBuildPipeline`, after `BakeLighting`) bake a Unity NavMesh per
+   scene from the world mesh (agent radius 0.5, height 1.75, step 0.6, slope 45°) or, if the
+   NavMesh build is unreliable on brush geometry, sample a 1 m waypoint grid over walkable
+   surfaces and connect with capsule casts. Bot movement = `NavMesh.CalculatePath` +
+   steering through `PlayerMotor` inputs (no teleporting — it must exercise the real physics).
+   Add `LQ_BOT_SCRIPT=goto:<x,y,z>` to test this alone.
+2. **Level solver (entity graph).** Build a graph from the scene's `QEntity` components:
+   `trigger_changelevel` (goal) ← reached through `func_door` (open / needs key `item_key1/2`
+   / opened by `targetname` from `func_button` or `trigger_once/multiple`) ← `func_plat`,
+   `trigger_teleport`, `func_train`, `trigger_secret`. Solve by BFS on "what is reachable
+   now" → pick the next actionable entity (button to press, key to pick up, door to walk
+   through, lift to ride), navigate to it, interact (touch, or fire the weapon for
+   `health`-triggered shootable buttons), re-evaluate. Log every decision as `[Bot] GOAL …`.
+   Time-out per goal 60 s → report `STUCK` with position + goal (this is where real map
+   import bugs will show up: unresolved `target`, mover that never arrives, missing key).
+3. **Combat.** While navigating: if a `Monster` is visible within 40 m, face it and fire the
+   best weapon that has ammo; pick up `item_*`/`weapon_*` within 3 m of the path. Retreat to
+   the last pickup of health when hp < 30.
+4. **Report.** Per map: time to finish, deaths, monsters killed / total, secrets found /
+   total, `STUCK` events, exceptions, and rendered screenshots (`LQ_BOT_SHOTS`, TESTING.md
+   §2b) at each `GOAL`. Write `Builds/playtest/<map>.md`; a map "passes" when it is finished
+   with 0 exceptions and 0 STUCK. Run the whole set with `LQ_BOT_MAPS=` (all) before every
+   release and attach the summary to the GitHub release notes.
+
+Where to plug in: `Assets/LQ/Scripts/Game/PlaytestBot.cs` (current scripts `walk`/`idle`,
+death and exception logging already exist), `Assets/LQ/Editor/LQBuildPipeline.BotPlay`
+(argument parsing, exit code). Map-side ground truth for the solver: `MapSources/<map>.map`
+with `tools/`-style entity dumps (TESTING.md "Map source analysis").
+
+### 8.2 Smaller open items
+
+- Owner's touch-button complaint is still unspecified (screen recording shows only that
+  buttons exist). The bot cannot inspect UI (camera-only screenshots) — ask for details.
+- `Monster.NoiseAt` should ignore `AmbushMarker`; skill damage multiplier unused; no
+  save/load; death screen needs a tap (`HUD.deathDismissed`).
+- 9 upstream stub maps (§1) — re-import when LibreQuake ships them.
+- Security housekeeping the owner was reminded of: rotate the Unity password and the
+  Telegram bot token that were shared in chat; they are **not** in this repo.
+
 ## 9. Sandbox recipe — rendering AND local APK builds without GPU/root (2026-09-19)
 
 The dev sandbox (gVisor kernel `4.19.0-gvisor`, 17 cores, no GPU, no root) used to fail

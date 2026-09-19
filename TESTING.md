@@ -207,3 +207,13 @@ and the APK contains 228 `.resource` files. Bot runs now also play real AudioCli
 `tools/` and the `.map` sources under `MapSources/` let you answer "what is at position X"
 without opening Unity: entity classnames, keys and brush bounding boxes. Player positions
 from the bot log (`q=`) are in the same coordinate system.
+
+## 4. Last sweep result (2026-09-19, interrupted)
+
+`LQ_BOT_MAPS=<all 41> LQ_BOT_SECONDS=30 LQ_BOT_SCRIPT=walk`, audio ON, 22/41 maps run before
+the owner paused the work: 0 exceptions; `walk` bot deaths on `lq_e3m1` (t=15 s and 25 s,
+falls from the start lift into the pit — `idle` rides the lift with 0 deaths, so this is the
+blind walk script, verify visually with `LQ_BOT_SHOTS=2`) and `lq_e1m7` (t=4–19 s, trigger
+`Collider00003` = liquid hazard near the start). Re-run the full set to finish the sweep.
+The real fix for "the bot cannot tell a game bug from its own blind walking" is the
+playthrough bot specified in AGENTS.md §8.1.
