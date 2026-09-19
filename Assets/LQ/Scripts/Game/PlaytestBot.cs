@@ -35,27 +35,41 @@ namespace LQ {
             yield return new WaitForSeconds(1.0f);
             var gm = GameManager.Instance;
             if (gm == null) { Debug.LogError("[Bot] no GameManager"); Quit(2); yield break; }
-            gm.stats.ResetForNewGame();
-            yield return gm.StartCoroutine(gm.LoadLevel(map));
-            Debug.Log("[Bot] level loaded: " + gm.currentMap);
-            running = true;
-            if (script == "walk") StartCoroutine(WalkScript());
-            float t0 = Time.time, nextLog = 0;
-            while (Time.time - t0 < seconds) {
-                if (Time.time >= nextLog) { LogState(Time.time - t0); nextLog = Time.time + 0.5f; }
-                var p = Player.Instance;
-                if (p != null && p.IsDead) {
-                    deaths++;
-                    Debug.Log($"[Bot] DIED #{deaths} at {Fmt(p.transform.position)} scene={gm.currentMap} lastPos={Fmt(lastPos)} minY={minY:F2}  " + Diagnose(p));
-                    yield return new WaitForSeconds(2.5f);
-                    if (deaths >= 2) break;
-                    var old = p; gm.RestartLevel();   // LoadLevel is async: wait for the *new* player object
-                    float w = 0; while (w < 15f && !(Player.Instance != null && Player.Instance != old && Player.Instance.IsAlive)) { w += Time.deltaTime; yield return null; }
-                    Debug.Log($"[Bot] restart {(Player.Instance != null && Player.Instance != old && Player.Instance.IsAlive ? "ok" : "FAILED (no new living player)")} after {w:F1}s");
-                    minY = float.MaxValue;
+            // LQ_BOT_MAPS=a,b,c runs several maps in one session (LQ_BOT_SECONDS each); falls back to LQ_BOT_MAP.
+            var maps = (System.Environment.GetEnvironmentVariable("LQ_BOT_MAPS") ?? map).Split(',');
+            var summary = new System.Text.StringBuilder();
+            foreach (var mraw in maps) {
+                var m = mraw.Trim(); if (m.Length == 0) continue;
+                gm.stats.ResetForNewGame(); deaths = 0; minY = float.MaxValue; running = false;
+                yield return gm.StartCoroutine(gm.LoadLevel(m));
+                Debug.Log("[Bot] level loaded: " + gm.currentMap);
+                if (gm.currentMap != m || Player.Instance == null) { Debug.LogError($"[Bot] MAP {m} FAILED to load (scene={gm.currentMap}, player={(Player.Instance != null)})"); summary.Append($"{m}: LOAD FAILED\n"); continue; }
+                running = true;
+                Coroutine walker = script == "walk" ? StartCoroutine(WalkScript()) : null;
+                float t0 = Time.time, nextLog = 0; string firstDeath = null;
+                while (Time.time - t0 < seconds) {
+                    if (Time.time >= nextLog) { LogState(Time.time - t0); nextLog = Time.time + 0.5f; }
+                    var p = Player.Instance;
+                    if (p != null && p.IsDead) {
+                        deaths++;
+                        var diag = Diagnose(p);
+                        Debug.Log($"[Bot] DIED #{deaths} at {Fmt(p.transform.position)} scene={gm.currentMap} t={Time.time - t0:F1} lastPos={Fmt(lastPos)} minY={minY:F2}  " + diag);
+                        firstDeath ??= $"t={Time.time - t0:F1} at {Fmt(p.transform.position)} {diag}";
+                        yield return new WaitForSeconds(2.5f);
+                        if (deaths >= 2) break;
+                        var old = p; gm.RestartLevel();   // LoadLevel is async: wait for the *new* player object
+                        float w = 0; while (w < 15f && !(Player.Instance != null && Player.Instance != old && Player.Instance.IsAlive)) { w += Time.deltaTime; yield return null; }
+                        Debug.Log($"[Bot] restart {(Player.Instance != null && Player.Instance != old && Player.Instance.IsAlive ? "ok" : "FAILED (no new living player)")} after {w:F1}s");
+                        minY = float.MaxValue;
+                    }
+                    yield return null;
                 }
-                yield return null;
+                running = false; if (walker != null) StopCoroutine(walker);
+                GameInput.botMove = Vector2.zero; GameInput.botLook = Vector2.zero;
+                Debug.Log($"[Bot] MAP {m} done deaths={deaths} finalScene={gm.currentMap} minY={minY:F2}");
+                summary.Append($"{m}: deaths={deaths}{(firstDeath != null ? " first: " + firstDeath : "")} finalScene={gm.currentMap}\n");
             }
+            Debug.Log("[Bot] SUMMARY\n" + summary);
             Debug.Log($"[Bot] done deaths={deaths} finalScene={gm.currentMap} minY={minY:F2}");
             Quit(0);
         }

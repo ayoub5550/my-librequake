@@ -86,7 +86,7 @@ namespace LQ {
                 airFinished = float.PositiveInfinity;
             }
             if (waterLevel > 0 && Time.time > nextLiquidDamage && !stats.HasSuit) {
-                if (liquidType == LiquidType.Lava) { nextLiquidDamage = Time.time + 0.2f; TakeDamage(new DamageInfo { amount = 10 * waterLevel * 0.2f * 5f / 5f, point = transform.position }); }
+                if (liquidType == LiquidType.Lava) { nextLiquidDamage = Time.time + 0.2f; TakeDamage(new DamageInfo { amount = 10 * waterLevel, point = transform.position }); }
                 else if (liquidType == LiquidType.Slime) { nextLiquidDamage = Time.time + 1f; TakeDamage(new DamageInfo { amount = 4 * waterLevel, point = transform.position }); }
             }
         }

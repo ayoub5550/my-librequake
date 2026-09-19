@@ -96,6 +96,7 @@ namespace LQ {
             var go = new GameObject("particles");
             go.transform.position = pos;
             var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear); // AddComponent auto-plays; duration can only be set while stopped
             var r = go.GetComponent<ParticleSystemRenderer>();
             r.material = ParticleMaterial; r.renderMode = ParticleSystemRenderMode.Billboard;
             var main = ps.main;

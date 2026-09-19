@@ -156,10 +156,13 @@ namespace LQ.EditorTools {
         /// </summary>
         public static void BotPlay() {
             try {
-                var map = Environment.GetEnvironmentVariable("LQ_BOT_MAP") ?? "lq_e1m1";
-                var scenePath = $"{SceneDir}/{map}.unity";
-                if (!File.Exists(scenePath) || Environment.GetEnvironmentVariable("LQ_BOT_REIMPORT") == "1") {
-                    ImportTextures(); ImportBrushModels(); LoadMaterials(); ImportMap(map);
+                var map = Environment.GetEnvironmentVariable("LQ_BOT_MAPS") ?? Environment.GetEnvironmentVariable("LQ_BOT_MAP") ?? "lq_e1m1";
+                bool ready = false;
+                foreach (var mraw in map.Split(',')) {
+                    var m = mraw.Trim(); if (m.Length == 0) continue;
+                    if (File.Exists($"{SceneDir}/{m}.unity") && Environment.GetEnvironmentVariable("LQ_BOT_REIMPORT") != "1") continue;
+                    if (!ready) { ImportTextures(); ImportBrushModels(); LoadMaterials(); ready = true; }
+                    Debug.Log("[LQ] BotPlay importing " + m); ImportMap(m);
                 }
                 if (!File.Exists($"{SceneDir}/Menu.unity")) BuildMenuScene();
                 UpdateBuildScenes();

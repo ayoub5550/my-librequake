@@ -67,6 +67,14 @@ Status (2026-09-19):
     `trigger_hurt`. The map is like that in LibreQuake too. Fix: guard rail in `Mover` — while a
     lift moves vertically the rider is clamped over the platform and pulled back if they step
     onto a passing ledge (the window trim at z=488). Jumping off is still possible (as in Quake).
+- **Full bot sweep of all 40 SP maps (2026-09-19)**: all load, no exceptions, deaths only from
+  lava/monsters (TESTING.md §2 has the details). Found on the way: lava damage was 5× weaker than
+  Quake (now `10 × waterlevel` every 0.2 s), `Effects.Particles` set `duration` on an auto-playing
+  system (warning spam, burst could be lost → now stopped first). **9 maps are one-room placeholder
+  stubs in LibreQuake 0.09-beta itself**: `lq_e1m6`, `lq_e2m1`, `lq_e3m7`, `lq_e4m2`, `lq_e4m6`,
+  `lq_e4m7`, `lq_e4m8`, `lq_e0m9`, `lq_end` — spawn room + exit slipgate, no monsters. This is what
+  the owner sees as "levels with missing content"; it can only be fixed upstream (or by pulling a
+  newer LibreQuake release into the import pipeline).
 - Lesson: never clear a static registry in `Awake` of a scene object — other objects' `Awake`
   order is undefined; prune instead.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
@@ -163,11 +171,12 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
-0. **Build #7** with the playtest fixes (`GetOrAdd`, `CarryPlayer`, lift guard rail) once Cloud
-   Build minutes are available again (≈30 min left on 2026-09-19 — a full build needs ~33).
-   Before that: run the TESTING.md smoke set (`start`, first map of each episode, idle + walk)
-   and fix every `DIED` on `idle`. Then run the bot over all 40 maps (`MapList()`) — it imports
-   each scene on first use, ~2 min per map.
+0. **Build #7** with the playtest fixes (`GetOrAdd`, `CarryPlayer`, lift guard rail, lava damage,
+   particle fix, multi-map bot) once Cloud Build minutes are available again (≈30 min left on
+   2026-09-19 — a full build needs ~33; the free tier resets monthly). The full 40-map bot sweep
+   already passed (TESTING.md §2); re-run the smoke set before every push.
+0b. **Placeholder maps**: check newer LibreQuake releases (https://github.com/lavenderdotpet/LibreQuake)
+   for finished versions of the 9 stub maps listed in §1 and re-import them (`MapSources/`).
 1. **Verify build #6 (v0.1.3) on a device**: EPISODE gates in `start` open only with runes,
    traps fire, fireballs/bubbles/lightning appear, skill filtering matches the original game.
    If something is invisible, check the Cloud Build log for "Serialized binary data for shader"

@@ -13,7 +13,7 @@ namespace LQ {
             var path = "sound/" + quakeSound;
             if (path.EndsWith(".wav")) path = path.Substring(0, path.Length - 4);
             c = Resources.Load<AudioClip>(path);
-            if (c == null) Debug.LogWarning("SoundBank: missing " + quakeSound);
+            if (c == null && !Application.isBatchMode) Debug.LogWarning("SoundBank: missing " + quakeSound); // headless Editor runs have audio disabled: every clip loads as null there
             cache[quakeSound] = c;
             return c;
         }

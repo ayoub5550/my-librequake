@@ -52,7 +52,8 @@ Environment variables:
 | Var | Default | Meaning |
 |---|---|---|
 | `LQ_BOT=1` | — | required, enables the bot |
-| `LQ_BOT_MAP` | `lq_e1m1` | map to load (`start`, `lq_e1m1` … see `LQBuildPipeline.MapList()`) |
+| `LQ_BOT_MAPS` | — | comma list, e.g. `lq_e1m1,lq_e2m1,lq_e3m1` — plays every map in turn in ONE Editor session (imports missing scenes first) and prints a `SUMMARY` at the end. Preferred: ~1 min startup instead of 1 min per map. |
+| `LQ_BOT_MAP` | `lq_e1m1` | single map (used when `LQ_BOT_MAPS` is empty) |
 | `LQ_BOT_SECONDS` | 30 | how long to play |
 | `LQ_BOT_SCRIPT` | `idle` | `idle` = stand still (tests spawn, lifts, triggers); `walk` = walk forward, turn, jump (tests edges, doors, falls) |
 | `LQ_BOT_DT` | — | fixed frame time, e.g. `0.12` (8 fps) or `0.33` (3 fps) simulates a slow phone. Mover/carry bugs only show up here. |
@@ -66,8 +67,16 @@ Log lines:
 [Bot] probe (0,0,1):2.8m worldspawn | (0,0,-1):2.0m func_door | …      ← LQ_BOT_PROBE or once per scene
 [Bot] t=0.5 q=(0.0,508.5,-1335.4) u=(0.0,15.9,-41.7) hp=100 grounded=True vel=(0.0,-1.0,10.0) floor=0.13m Collider00000 water=0
 [Bot] DIED #1 at (…) scene=… lastPos=… minY=… NO FLOOR below | trigger:trigger_hurt#12
-[Bot] done deaths=0 finalScene=lq_e3m1 minY=0.03
+[Bot] MAP lq_e3m1 done deaths=0 finalScene=lq_e3m1 minY=0.03     ← one per map
+[Bot] MAP lq_e9m9 FAILED to load                                  ← scene missing / LoadLevel error
+[Bot] restart ok after 1.2s | restart FAILED                      ← after a death; FAILED = RestartLevel bug
+[Bot] SUMMARY
+lq_e1m1: deaths=0 finalScene=lq_e1m1
+lq_e3m1: deaths=1 first: (…) NO FLOOR below | trigger:trigger_hurt#12 finalScene=lq_e3m1
+[Bot] done deaths=1 finalScene=lq_e3m1 minY=0.03
 ```
+
+After 2 deaths on the same map the bot moves on to the next map.
 
 `q` = Quake units (x, z-up, y) exactly as in the `.map` source, so you can look the position
 up in TrenchBroom; `u` = Unity metres; `floor` = distance to the ground under the player
@@ -77,13 +86,15 @@ and any trigger volumes within 1 m (`trigger_hurt` = kill pit / slime).
 What to run before a build (the "smoke set"):
 
 ```bash
-for m in start lq_e1m1 lq_e2m1 lq_e3m1 lq_e4m1; do
-  for s in idle walk; do
-    LQ_BOT=1 LQ_BOT_MAP=$m LQ_BOT_SCRIPT=$s LQ_BOT_SECONDS=30 $UNITY … -executeMethod LQ.EditorTools.LQBuildPipeline.BotPlay -logFile log_${m}_${s}.txt
-  done
+for s in idle walk; do
+  LQ_BOT=1 LQ_BOT_MAPS=start,lq_e1m1,lq_e2m1,lq_e3m1,lq_e4m1 LQ_BOT_SCRIPT=$s LQ_BOT_SECONDS=20 \
+    $UNITY … -executeMethod LQ.EditorTools.LQBuildPipeline.BotPlay -logFile log_smoke_${s}.txt
 done
-grep -H "done deaths\|DIED\|NullReference\|MissingComponent" log_*.txt
+grep -H -A50 "SUMMARY" log_smoke_*.txt; grep -H "DIED\|FAILED\|NullReference\|MissingComponent" log_smoke_*.txt
 ```
+
+Full sweep (all 40 SP maps, ~25 min incl. first import): pass the whole `MapList()` in
+`LQ_BOT_MAPS` (`grep -o '"lq_[a-z0-9_]*"' Assets/LQ/Editor/LQBuildPipeline.cs`).
 
 Any `DIED` on `idle` is a bug (spawn falls / lift bugs). A `DIED` on `walk` needs a look at
 the position: walking into slime/lava is legitimate, falling through a lift or a wall is not.
@@ -101,11 +112,28 @@ Bugs found with the bot so far (all fixed, see git log):
   slime `trigger_hurt` → instant death right after entering Episode 3. Riders are now kept over
   the platform while a lift moves vertically (guard rail in `Mover.CarryPlayer`).
 
-Known limitation in GPU-less sandboxes: importing *some* maps for the first time inside `BotPlay`
-can crash the Editor in `Material.GetTexture` (seen with `start`; `lq_e1m1`/`lq_e3m1` imported fine).
-Import those maps once on a normal machine (menu `LibreQuake → Import maps` or
-`-executeMethod LQ.EditorTools.LQBuildPipeline.ImportSelected` with `LQ_MAPS=start`) and commit
-nothing — scenes are generated, the bot only needs them to exist locally.
+Full sweep, 2026-09-19 (`LQ_BOT_SCRIPT=walk`, 12 s per map, all 40 SP maps + `start`): every map
+loads and spawns a player; 3 deaths, all legitimate (lava in `lq_e0m8` and `lq_e1m7`, knights in
+`lq_e2m2`). No `MissingComponent`/`NullReference`. Things that look like bugs but are not:
+
+- `finalScene` differs from the map name for `lq_e1m6`, `lq_e0m9`, `lq_e3m7`, `lq_e4m2`, `lq_e4m6`,
+  `lq_e4m7`, `lq_e4m8` (and `lq_e2m1`, `lq_end`): these maps are **placeholder stubs in LibreQuake
+  0.09-beta** — one room, ~18 entities, exit slipgate 14 m in front of the spawn (see the
+  `.map` sizes: 50–65 KB vs 0.5–8 MB for real maps). The walk script simply walks into the exit.
+  Nothing to fix on our side; upstream LibreQuake has to finish those maps.
+- `SoundBank: missing …` for every clip: the headless Editor has audio disabled, so
+  `Resources.Load<AudioClip>` returns null. The clips are in the APK (Cloud Build log lists all
+  228 `.wav`). The warning is now suppressed in batchmode.
+
+GPU-less sandboxes (no working `UnityShaderCompiler`): the first import of a map whose materials
+were never hashed crashes the Editor with `Fatal Error! Shader compiler initialization error` inside
+`Material.GetTexture` (Scopa reads `material.mainTexture` for the texture size). Workaround used in
+the sandbox, NOT committed: embed Scopa as a local package (`Packages/com.radiatoryang.scopa`, copy of
+`Library/PackageCache/com.radiatoryang.scopa@1a31fb8df9`, delete its `Runtime/Ica_Normal_Tools/IcaUtils/Tests`
+folder, point `Packages/manifest.json` at `file:com.radiatoryang.scopa`) and in `ScopaMesh.cs` replace the
+`matOverride.material.mainTexture` reads with a helper that, under `#if UNITY_EDITOR`, reads the
+`_MainTex` reference through `SerializedObject(mat).FindProperty("m_SavedProperties.m_TexEnvs")`.
+On a normal machine (Cloud Build, a dev PC) none of this is needed.
 
 Extending the bot: `Assets/LQ/Scripts/Game/PlaytestBot.cs` — add a script name in
 `Start()` (e.g. `shoot`, `usekeys`) and a coroutine that writes `GameInput.botMove` /
