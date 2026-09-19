@@ -37,3 +37,15 @@ namespace LQ {
         }
     }
 }
+
+namespace LQ {
+    /// <summary>GameObject helpers. Never write `GetComponent<T>() ?? AddComponent<T>()`:
+    /// in the Editor GetComponent returns a fake-null object, so `??` never adds the component
+    /// (MissingComponentException in headless playtests). Use GetOrAdd instead.</summary>
+    public static class GoExt {
+        public static T GetOrAdd<T>(this UnityEngine.GameObject go) where T : UnityEngine.Component {
+            var c = go.GetComponent<T>();
+            return c != null ? c : go.AddComponent<T>();
+        }
+    }
+}

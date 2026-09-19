@@ -73,8 +73,8 @@ namespace LQ {
 
         void Update() {
             if (running && !GameInput.uiBlocked) {
-                GameInput.touchMove = move;
-                GameInput.touchLookDelta += new Vector2(yaw, pitch) * Time.deltaTime;
+                GameInput.botMove = move;
+                GameInput.botLook = new Vector2(yaw, pitch) * Time.deltaTime;
                 GameInput.touchFire = fire;
             }
         }

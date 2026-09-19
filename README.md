@@ -15,6 +15,7 @@
 - `Assets/LQ/Editor/LQBuildPipeline.cs` — خط الإنتاج: استيراد الخامات → النماذج → الخرائط → بناء APK.
 - `ci/build-android.yml` — (اختياري) بناء APK على GitHub Actions. البناء الحالي يتم عبر **Unity Cloud Build**.
 - `AGENTS.md` — دليل للمطورين والوكلاء الذكيين لفهم المشروع ومواصلته.
+- `TESTING.md` — كيفية اختبار اللعبة بدون هاتف: فحص الترجمة، بوت اللعب الآلي بدون شاشة (`PlaytestBot`)، وقائمة فحص الجهاز.
 - `tools/` — سكربتات Python لتحضير الموارد من مستودع LibreQuake الأصلي.
 
 **أزرار اللمس (أندرويد):** عصا تحكم يسارية للحركة، سحب على يمين الشاشة للنظر، أزرار FIRE و JUMP، تبديل السلاح `<` `>`، وزر إيقاف. الأزرار تتكيّف مع حجم الشاشة ومنطقة الأمان (Safe Area).
@@ -52,6 +53,7 @@ A full rebuild of **LibreQuake** (the libre Quake content replacement) as a nati
 | `Assets/LQ/Editor/LQBuildPipeline.cs` | Build pipeline: import textures → brush models → maps → build APK |
 | `ci/build-android.yml` | Optional GitHub Actions workflow. Current builds run on **Unity Cloud Build** |
 | `AGENTS.md` | Guide for developers / AI agents: architecture, pipeline, Cloud Build setup, next steps |
+| `TESTING.md` | How to test without a phone: compile check, headless playtest bot (`PlaytestBot`), device checklist |
 | `tools/` | Python scripts that stage assets from the upstream LibreQuake repo |
 
 ### Touch controls

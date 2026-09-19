@@ -15,7 +15,7 @@ namespace LQ {
 
         protected virtual void Awake() {
             ent = GetComponent<QEntity>();
-            var rb = gameObject.GetComponent<Rigidbody>() ?? gameObject.AddComponent<Rigidbody>();
+            var rb = gameObject.GetOrAdd<Rigidbody>();
             rb.isKinematic = true; rb.useGravity = false;
             localBounds = ent.GetBounds();
             spawnPos = transform.position;
@@ -53,13 +53,52 @@ namespace LQ {
         protected virtual void OnBlocked() { }
 
         /// <summary>Is the player standing on (or inside) this mover? Then move them with it.</summary>
+        float lastRideTime = -10f, rideTopY; Bounds rideBounds; Vector3 lastRidePos;   // guard-rail memory (see below)
+
         void CarryPlayer(Vector3 delta) {
             var p = Player.Instance; if (p == null) return;
             var cc = p.motor.cc;
-            var feet = p.transform.position + Vector3.up * 0.1f;
-            if (Physics.SphereCast(feet, cc.radius * 0.9f, Vector3.down, out var hit, 0.35f, ~LayerMask.GetMask("Player", "Monster"), QueryTriggerInteraction.Ignore)) {
-                if (hit.collider.transform.IsChildOf(transform)) {
+            // Physics.SphereCast ignores colliders the sphere already overlaps at its start, so the sphere must start
+            // fully above the floor (feet + radius + margin) — a cast started at the feet never saw the platform at all.
+            float rad = cc.radius * 0.9f;
+            var feet = p.transform.position + Vector3.up * (rad + 0.1f);
+            // The cast must reach further than the mover travels this frame: on a slow phone (3-10 fps) a lift
+            // descending at 1.5 m/s moves 0.15-0.5 m per frame, and a fixed 0.35 m cast lost the player (e3m1 start lift).
+            float reach = 0.1f + 0.35f + Mathf.Max(0f, -delta.y) + delta.magnitude;
+            bool vertical = Mathf.Abs(delta.y) > 0.0001f && Mathf.Abs(delta.x) + Mathf.Abs(delta.z) < 0.0001f;
+            bool onThis = Physics.SphereCast(feet, rad, Vector3.down, out var hit, reach, ~LayerMask.GetMask("Player", "Monster"), QueryTriggerInteraction.Ignore)
+                          && hit.collider.transform.IsChildOf(transform);
+#if UNITY_EDITOR
+            if (vertical && PlaytestBot.Verbose) Debug.Log($"[Carry] {name} onThis={onThis} hit={(hit.collider ? hit.collider.transform.parent?.name + "/" + hit.collider.name : "-")} pos={p.transform.position} grounded={p.motor.grounded} vy={p.motor.velocity.y:F2} rideMaxY={rideBounds.max.y:F2} since={Time.time - lastRideTime:F2}");
+#endif
+            if (onThis) {
+                {
                     cc.Move(delta + Vector3.down * 0.001f);
+                    if (vertical) {
+                        // remember the platform pieces at the rider's floor height (not the whole entity: rails/cage extend further)
+                        var b = hit.collider.bounds; bool any = false;
+                        foreach (var c in myColliders) {
+                            if (c == null || !c.enabled || Mathf.Abs(c.bounds.max.y - hit.point.y) > 0.15f) continue;
+                            if (!any) { b = c.bounds; any = true; } else b.Encapsulate(c.bounds);
+                        }
+                        rideBounds = b; lastRideTime = Time.time; rideTopY = hit.point.y;
+                        GuardRail(p, cc);
+                        lastRidePos = p.transform.position;
+                    }
+                    return;
+                }
+            } else if (vertical && Time.time - lastRideTime < 0.4f) {
+                // Rider just stepped over the edge of a moving lift (PlayerMotor moved them before we ran) or onto a ledge the
+                // lift is passing (e3m1: the window trim in front of the start lift): pull them back and keep carrying.
+                var pos = p.transform.position;
+                if (p.motor.velocity.y <= 0.5f && pos.y > rideTopY - 0.6f && pos.y < rideTopY + 1.0f) {
+                    // invisible wall: back to where they last stood on the platform (horizontal only), then ride on
+                    var back = new Vector3(lastRidePos.x - pos.x, 0, lastRidePos.z - pos.z);
+                    var toCenter = new Vector3(rideBounds.center.x - pos.x, 0, rideBounds.center.z - pos.z);
+                    if (toCenter.sqrMagnitude > 1e-4f) back += toCenter.normalized * (cc.radius * 1.2f); // nudge inward so a ledge cannot keep the feet
+                    cc.Move(back);
+                    cc.Move(delta + Vector3.down * 0.001f);
+                    rideBounds.center += delta; rideTopY += delta.y; lastRideTime = Time.time;
                     return;
                 }
             }
@@ -69,6 +108,15 @@ namespace LQ {
                 var pb = new Bounds(p.Center, new Vector3(cc.radius * 2, cc.height, cc.radius * 2));
                 if (b.Intersects(pb) && delta.sqrMagnitude > 0) cc.Move(delta * 1.05f);
             }
+        }
+
+        /// <summary>Guard rail: while a lift moves vertically, keep the rider's feet over the platform. Without this the
+        /// e3m1 start lift lets the player walk off the open front edge and drop 17 m into the slime pit (instant death).</summary>
+        void GuardRail(Player p, CharacterController cc) {
+            float r = cc.radius * 0.5f; var b = rideBounds;
+            var pos = p.transform.position;
+            var clamped = new Vector3(Mathf.Clamp(pos.x, b.min.x + r, b.max.x - r), pos.y, Mathf.Clamp(pos.z, b.min.z + r, b.max.z - r));
+            if ((clamped - pos).sqrMagnitude > 1e-8f) cc.Move(clamped - pos);
         }
 
         protected Bounds WorldBounds() { var b = localBounds; b.center += transform.position - spawnPos; return b; }

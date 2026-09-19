@@ -39,9 +39,9 @@ namespace LQ {
         }
 
         void EnsureComponents() {
-            if (mf == null) mf = gameObject.GetComponent<MeshFilter>() ?? gameObject.AddComponent<MeshFilter>();
+            if (mf == null) mf = gameObject.GetOrAdd<MeshFilter>();
             if (mr == null) {
-                mr = gameObject.GetComponent<MeshRenderer>() ?? gameObject.AddComponent<MeshRenderer>();
+                mr = gameObject.GetOrAdd<MeshRenderer>();
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 mr.receiveShadows = false;
             }

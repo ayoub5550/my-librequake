@@ -7,7 +7,7 @@ namespace LQ {
         protected QEntity ent;
         protected virtual void Awake() {
             ent = GetComponent<QEntity>();
-            var rb = gameObject.GetComponent<Rigidbody>() ?? gameObject.AddComponent<Rigidbody>();
+            var rb = gameObject.GetOrAdd<Rigidbody>();
             rb.isKinematic = true; rb.useGravity = false;
             var cols = GetComponentsInChildren<Collider>();
             if (cols.Length == 0) { // no collider imported (e.g. all faces culled): use the brush bounds

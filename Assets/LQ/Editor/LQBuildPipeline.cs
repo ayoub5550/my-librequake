@@ -149,6 +149,27 @@ namespace LQ.EditorTools {
             } catch (Exception e) { Debug.LogError("CloudPreExport failed: " + e); throw; }
         }
 
+        /// <summary>
+        /// Headless play-test (batch mode, no -quit): imports LQ_BOT_MAP if its scene is missing, opens the Menu scene and
+        /// enters play mode; PlaytestBot (env LQ_BOT=1) then loads the map, logs "[Bot] ..." lines and exits the Editor.
+        /// Usage: LQ_BOT=1 LQ_BOT_MAP=lq_e3m1 LQ_BOT_SECONDS=30 Unity -batchmode -nographics -projectPath . -executeMethod LQ.EditorTools.LQBuildPipeline.BotPlay -logFile bot.log
+        /// </summary>
+        public static void BotPlay() {
+            try {
+                var map = Environment.GetEnvironmentVariable("LQ_BOT_MAP") ?? "lq_e1m1";
+                var scenePath = $"{SceneDir}/{map}.unity";
+                if (!File.Exists(scenePath) || Environment.GetEnvironmentVariable("LQ_BOT_REIMPORT") == "1") {
+                    ImportTextures(); ImportBrushModels(); LoadMaterials(); ImportMap(map);
+                }
+                if (!File.Exists($"{SceneDir}/Menu.unity")) BuildMenuScene();
+                UpdateBuildScenes();
+                AssetDatabase.SaveAssets();
+                EditorSceneManager.OpenScene($"{SceneDir}/Menu.unity");
+                Debug.Log("[LQ] BotPlay entering play mode for " + map);
+                EditorApplication.EnterPlaymode();
+            } catch (Exception e) { Debug.LogError("BotPlay failed: " + e); if (Application.isBatchMode) EditorApplication.Exit(1); throw; }
+        }
+
         /// <summary>Import step only (batch).</summary>
         public static void ImportAll() {
             try { ImportTextures(); ImportBrushModels(); ImportAllMaps(); }

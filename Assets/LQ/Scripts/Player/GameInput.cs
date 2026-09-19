@@ -10,6 +10,8 @@ namespace LQ {
         public static bool touchNextWeapon, touchPrevWeapon;
         public static bool touchUse;
         public static bool uiBlocked;             // menus open
+        // written by PlaytestBot / DemoRunner (TouchControls zeroes touchMove every frame when hidden)
+        public static Vector2 botMove, botLook;
 
         public static float mouseSensitivity = 2.0f;
         public static float touchSensitivity = 0.35f;  // degrees per pixel (scaled by DPI)
@@ -26,7 +28,7 @@ namespace LQ {
                 var kb = new Vector2(
                     (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0),
                     (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0));
-                var m = kb + touchMove;
+                var m = kb + touchMove + botMove;
                 return m.sqrMagnitude > 1 ? m.normalized : m;
             }
         }
@@ -34,7 +36,7 @@ namespace LQ {
         public static Vector2 Look {
             get {
                 if (uiBlocked) return Vector2.zero;
-                var l = touchLookDelta;
+                var l = touchLookDelta + botLook;
                 if (!IsMobile && Cursor.lockState == CursorLockMode.Locked) {
                     l += new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * mouseSensitivity;
                 }
@@ -57,6 +59,6 @@ namespace LQ {
         }
 
         /// <summary>Call at end of frame (from TouchControls.LateUpdate) to clear per-frame deltas.</summary>
-        public static void EndFrame() { touchLookDelta = Vector2.zero; }
+        public static void EndFrame() { touchLookDelta = Vector2.zero; botLook = Vector2.zero; }
     }
 }

@@ -14,7 +14,7 @@ is re-implemented in C# (`Assets/LQ/Scripts`), and the original LibreQuake data
 (`.map` sources, PNG textures, `.mdl` models, `.wav` sounds) is imported by an Editor
 pipeline into Unity scenes and assets.
 
-Status (2026-09-18):
+Status (2026-09-19):
 
 - Complete C# runtime: player (FPS + touch), 8 weapons, monsters/AI, doors, plats,
   buttons, triggers, secrets, level change, HUD, main menu, Android touch controls.
@@ -52,6 +52,21 @@ Status (2026-09-18):
     `Item` and `MonsterDefs` shows no unhandled gameplay classnames — only `func_group`
     (editor grouping), `path_corner` (consumed by `func_train`) and `viewthing` remain.
     Awaiting device test.
+- **Headless playtesting works** (2026-09-19): `PlaytestBot` + `LQBuildPipeline.BotPlay` run the
+  real game in Editor play mode without a GPU and log the player's position/health/deaths.
+  Full instructions in **`TESTING.md`** — run the smoke set before every push. First findings,
+  all fixed in the commit after `924093b`:
+  - `GetComponent<T>() ?? AddComponent<T>()` is broken in the Editor (fake-null) → use
+    `gameObject.GetOrAdd<T>()`. In the Editor this aborted `LevelSetup.Start` so no player spawned.
+  - `Mover.CarryPlayer` never detected the rider: `Physics.SphereCast` ignores colliders the
+    sphere starts inside, and the cast started at the feet. Lifts only "worked" because the
+    door's bounds-push branch shoved the player down. Cast now starts `radius + 0.1` above the
+    feet and reaches `0.45 + |delta|` (slow phones move 0.5 m per frame).
+  - **Episode 3 instant death** (owner report, reproduced by the bot): the `lq_e3m1` start lift
+    is open at the front; one step forward while it descends = 17 m fall into the slime
+    `trigger_hurt`. The map is like that in LibreQuake too. Fix: guard rail in `Mover` — while a
+    lift moves vertically the rider is clamped over the platform and pulled back if they step
+    onto a passing ledge (the window trim at z=488). Jumping off is still possible (as in Quake).
 - Lesson: never clear a static registry in `Awake` of a scene object — other objects' `Awake`
   order is undefined; prune instead.
 - Lesson for future work: **anything loaded with `Shader.Find`/`Resources.Load` must live under
@@ -148,12 +163,18 @@ REST (same as the dashboard uses): `https://build-automation.services.api.unity.
 
 ## 6. What to do next (priority order)
 
+0. **Build #7** with the playtest fixes (`GetOrAdd`, `CarryPlayer`, lift guard rail) once Cloud
+   Build minutes are available again (≈30 min left on 2026-09-19 — a full build needs ~33).
+   Before that: run the TESTING.md smoke set (`start`, first map of each episode, idle + walk)
+   and fix every `DIED` on `idle`. Then run the bot over all 40 maps (`MapList()`) — it imports
+   each scene on first use, ~2 min per map.
 1. **Verify build #6 (v0.1.3) on a device**: EPISODE gates in `start` open only with runes,
    traps fire, fireballs/bubbles/lightning appear, skill filtering matches the original game.
    If something is invisible, check the Cloud Build log for "Serialized binary data for shader"
    lines — every `LQ/*` shader must appear there.
-2. **Play-test and collect device bugs** (owner reports: several gameplay errors in build #2,
-   details pending; the touch-button complaint is still unspecified — ask for a screen recording). Use `adb logcat -s Unity` on the device; every runtime problem logs with the
+2. **Play-test and collect device bugs** (owner reports after v0.1.3: "many levels still have
+   problems", Episode 3 death fixed above; the touch-button complaint is still unspecified — ask
+   for a screen recording). Reproduce every report with the bot first (TESTING.md). Use `adb logcat -s Unity` on the device; every runtime problem logs with the
    `[LQ]`/`MdlLoader`/`Monster` prefixes. Fix, push to `main`, press Build on the `Android`
    target (≈33 min, free tier ≈ 200 min/month — check remaining minutes first).
 3. If the full import ever exceeds the budget, build episode by episode
